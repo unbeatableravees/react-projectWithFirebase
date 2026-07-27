@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./Dashboard.css";
 
 function Dashboard({ user, onLogout }) {
   const [activePage, setActivePage] = useState("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // =========================
   // TODO DATA
@@ -36,6 +37,20 @@ function Dashboard({ user, onLogout }) {
       category: "Testing",
       priority: "High",
       completed: false
+    },
+    {
+      id: 5,
+      title: "Prepare project README",
+      category: "Documentation",
+      priority: "Medium",
+      completed: false
+    },
+    {
+      id: 6,
+      title: "Review UI animations",
+      category: "Design",
+      priority: "Low",
+      completed: true
     }
   ]);
 
@@ -48,38 +63,71 @@ function Dashboard({ user, onLogout }) {
   const [profile, setProfile] = useState({
     name: user?.name || "RAF User",
     email: user?.email || "user@example.com",
-    phone: user?.phone || ""
+    phone: user?.phone || "+91 9876543210"
   });
 
   const [message, setMessage] = useState("");
 
   // =========================
-  // CONTACT
+  // TIMER
   // =========================
 
-  const [contact, setContact] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
-    message: ""
+  const [timerMinutes, setTimerMinutes] = useState(25);
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerMode, setTimerMode] = useState("Focus");
+
+  // =========================
+  // CLOCK
+  // =========================
+
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // =========================
+  // NOTES
+  // =========================
+
+  const [notes, setNotes] = useState(
+    "Remember to review Firebase rules and test Google authentication before deployment."
+  );
+
+  const [notesSaved, setNotesSaved] = useState(false);
+
+  // =========================
+  // SETTINGS
+  // =========================
+
+  const [settings, setSettings] = useState({
+    emailNotifications: true,
+    activityAlerts: true,
+    autoSync: true
   });
 
-  const [contactSent, setContactSent] = useState(false);
-
   // =========================
-  // NAVIGATION
+  // EXTRA DASHBOARD DATA
   // =========================
 
-  const changePage = (page) => {
-    setActivePage(page);
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth"
-    });
+  const demoStats = {
+    users: "1,284",
+    projects: "24",
+    productivity: "87%",
+    sessions: "38,291",
+    conversion: "68.4%",
+    performance: "94.8%"
   };
 
+  const weeklyData = [
+    { day: "Mon", value: 35 },
+    { day: "Tue", value: 60 },
+    { day: "Wed", value: 45 },
+    { day: "Thu", value: 80 },
+    { day: "Fri", value: 65 },
+    { day: "Sat", value: 90 },
+    { day: "Sun", value: 75 }
+  ];
+
   // =========================
-  // TODO FUNCTIONS
+  // ADD TODO
   // =========================
 
   const addTodo = () => {
@@ -93,13 +141,17 @@ function Dashboard({ user, onLogout }) {
       completed: false
     };
 
-    setTodos((prev) => [...prev, todo]);
+    setTodos((current) => [...current, todo]);
     setNewTodo("");
   };
 
+  // =========================
+  // COMPLETE TODO
+  // =========================
+
   const toggleTodo = (id) => {
-    setTodos((prev) =>
-      prev.map((todo) =>
+    setTodos((current) =>
+      current.map((todo) =>
         todo.id === id
           ? {
               ...todo,
@@ -110,9 +162,13 @@ function Dashboard({ user, onLogout }) {
     );
   };
 
+  // =========================
+  // DELETE TODO
+  // =========================
+
   const deleteTodo = (id) => {
-    setTodos((prev) =>
-      prev.filter((todo) => todo.id !== id)
+    setTodos((current) =>
+      current.filter((todo) => todo.id !== id)
     );
   };
 
@@ -129,40 +185,7 @@ function Dashboard({ user, onLogout }) {
   };
 
   // =========================
-  // CONTACT
-  // =========================
-
-  const handleContactInput = (e) => {
-    setContact((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-
-    setContactSent(false);
-  };
-
-  const handleContactSubmit = (e) => {
-    e.preventDefault();
-
-    if (
-      !contact.name.trim() ||
-      !contact.email.trim() ||
-      !contact.message.trim()
-    ) {
-      alert("Please fill all fields.");
-      return;
-    }
-
-    setContactSent(true);
-
-    setContact((prev) => ({
-      ...prev,
-      message: ""
-    }));
-  };
-
-  // =========================
-  // STATS
+  // TODO STATS
   // =========================
 
   const completedTodos = todos.filter(
@@ -173,11 +196,156 @@ function Dashboard({ user, onLogout }) {
     (todo) => !todo.completed
   ).length;
 
-  const completionPercentage = todos.length
-    ? Math.round(
-        (completedTodos / todos.length) * 100
-      )
+  const completionRate = todos.length
+    ? Math.round((completedTodos / todos.length) * 100)
     : 0;
+
+  // =========================
+  // TIMER FORMAT
+  // =========================
+
+  const formattedTimer = `${String(timerMinutes).padStart(
+    2,
+    "0"
+  )}:${String(timerSeconds).padStart(2, "0")}`;
+
+  // =========================
+  // TIMER EFFECT
+  // =========================
+
+  useEffect(() => {
+    if (!timerRunning) return;
+
+    const interval = setInterval(() => {
+      setTimerSeconds((seconds) => {
+        if (seconds > 0) {
+          return seconds - 1;
+        }
+
+        setTimerMinutes((minutes) => {
+          if (minutes > 0) {
+            return minutes - 1;
+          }
+
+          setTimerRunning(false);
+
+          if (typeof window !== "undefined") {
+            if ("Notification" in window) {
+              if (Notification.permission === "granted") {
+                new Notification("RAF AI Timer", {
+                  body: `${timerMode} session completed!`
+                });
+              }
+            }
+          }
+
+          return 0;
+        });
+
+        return 59;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timerRunning, timerMode]);
+
+  // =========================
+  // CLOCK EFFECT
+  // =========================
+
+  useEffect(() => {
+    const clock = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(clock);
+  }, []);
+
+  // =========================
+  // REQUEST NOTIFICATION
+  // =========================
+
+  const requestNotificationPermission = async () => {
+    if (
+      typeof window !== "undefined" &&
+      "Notification" in window &&
+      Notification.permission === "default"
+    ) {
+      await Notification.requestPermission();
+    }
+  };
+
+  // =========================
+  // TIMER CONTROLS
+  // =========================
+
+  const startTimer = async () => {
+    await requestNotificationPermission();
+    setTimerRunning(true);
+  };
+
+  const pauseTimer = () => {
+    setTimerRunning(false);
+  };
+
+  const resetTimer = () => {
+    setTimerRunning(false);
+
+    if (timerMode === "Focus") {
+      setTimerMinutes(25);
+    } else if (timerMode === "Short Break") {
+      setTimerMinutes(5);
+    } else {
+      setTimerMinutes(15);
+    }
+
+    setTimerSeconds(0);
+  };
+
+  const addTimerMinutes = (amount) => {
+    setTimerMinutes((minutes) => minutes + amount);
+  };
+
+  const changeTimerMode = (mode) => {
+    setTimerMode(mode);
+    setTimerRunning(false);
+    setTimerSeconds(0);
+
+    if (mode === "Focus") {
+      setTimerMinutes(25);
+    }
+
+    if (mode === "Short Break") {
+      setTimerMinutes(5);
+    }
+
+    if (mode === "Long Break") {
+      setTimerMinutes(15);
+    }
+  };
+
+  // =========================
+  // SAVE NOTES
+  // =========================
+
+  const saveNotes = () => {
+    setNotesSaved(true);
+
+    setTimeout(() => {
+      setNotesSaved(false);
+    }, 2000);
+  };
+
+  // =========================
+  // SETTINGS
+  // =========================
+
+  const toggleSetting = (key) => {
+    setSettings((current) => ({
+      ...current,
+      [key]: !current[key]
+    }));
+  };
 
   // =========================
   // NAVIGATION
@@ -205,58 +373,86 @@ function Dashboard({ user, onLogout }) {
       label: "Analytics"
     },
     {
-      id: "about",
-      icon: "ⓘ",
-      label: "About"
-    },
-    {
-      id: "contact",
-      icon: "✉",
-      label: "Contact"
-    },
-    {
       id: "settings",
       icon: "⚙",
       label: "Settings"
     }
   ];
 
-  // =========================
-  // PAGE TITLE
-  // =========================
-
-  const getPageTitle = () => {
-    const titles = {
-      overview: "Dashboard",
-      tasks: "My Tasks",
-      profile: "My Profile",
-      analytics: "Analytics",
-      about: "About RAF AI",
-      contact: "Contact Us",
-      settings: "Settings"
-    };
-
-    return titles[activePage] || "Dashboard";
+  const pageTitles = {
+    overview: "Dashboard",
+    tasks: "My Tasks",
+    profile: "My Profile",
+    analytics: "Analytics",
+    settings: "Settings"
   };
+
+  const changePage = (page) => {
+    setActivePage(page);
+    setSidebarOpen(false);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  };
+
+  // =========================
+  // DATE
+  // =========================
+
+  const formattedDate = useMemo(() => {
+    return currentTime.toLocaleDateString("en-IN", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    });
+  }, [currentTime]);
+
+  const formattedClock = useMemo(() => {
+    return currentTime.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    });
+  }, [currentTime]);
 
   return (
     <div className="dashboard">
 
-      {/* =====================================
-          SIDEBAR
-      ===================================== */}
+      {/* MOBILE OVERLAY */}
 
-      <aside className="dashboard-sidebar">
+      {sidebarOpen && (
+        <div
+          className="sidebar-overlay"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* =========================
+          SIDEBAR
+      ========================= */}
+
+      <aside
+        className={
+          sidebarOpen
+            ? "dashboard-sidebar open"
+            : "dashboard-sidebar"
+        }
+      >
 
         <div className="brand">
+
           <div className="brand-logo">
             R
           </div>
 
-          <div className="brand-text">
+          <div>
             <strong>RAF AI</strong>
-            <span>Dashboard</span>
+            <span>Smart Workspace</span>
           </div>
+
         </div>
 
         <nav className="sidebar-nav">
@@ -287,19 +483,39 @@ function Dashboard({ user, onLogout }) {
 
         </nav>
 
+        {/* SIDEBAR INFO */}
+
+        <div className="sidebar-mini-card">
+
+          <div className="mini-card-icon">
+            ⚡
+          </div>
+
+          <div>
+            <strong>Productivity</strong>
+            <span>87% this week</span>
+          </div>
+
+        </div>
+
         <div className="sidebar-bottom">
 
           <div className="sidebar-user">
 
-            <div className="sidebar-avatar">
+            <div className="avatar small">
               {profile.name
                 ? profile.name.charAt(0).toUpperCase()
                 : "R"}
             </div>
 
             <div>
-              <strong>{profile.name}</strong>
-              <span>{profile.email}</span>
+              <strong>
+                {profile.name}
+              </strong>
+
+              <span>
+                {profile.email}
+              </span>
             </div>
 
           </div>
@@ -316,34 +532,60 @@ function Dashboard({ user, onLogout }) {
 
       </aside>
 
-      {/* =====================================
+      {/* =========================
           MAIN
-      ===================================== */}
+      ========================= */}
 
       <main className="dashboard-main">
 
-        {/* =====================================
-            TOPBAR
-        ===================================== */}
+        {/* TOPBAR */}
 
         <header className="dashboard-topbar">
 
+          <div className="mobile-menu-area">
+
+            <button
+              className="mobile-menu"
+              onClick={() =>
+                setSidebarOpen(!sidebarOpen)
+              }
+            >
+              ☰
+            </button>
+
+          </div>
+
           <div className="topbar-title">
-            <h1>{getPageTitle()}</h1>
+
+            <div className="breadcrumb">
+              RAF AI
+              <span>/</span>
+              {pageTitles[activePage]}
+            </div>
+
+            <h1>
+              {pageTitles[activePage]}
+            </h1>
 
             <p>
               Welcome back, {profile.name}
             </p>
+
           </div>
 
           <div className="topbar-right">
+
+            <div className="live-clock">
+              <span>● Live</span>
+              <strong>{formattedClock}</strong>
+            </div>
 
             <button
               className="notification-button"
               onClick={() =>
                 alert("You have 3 new notifications")
               }
-              title="Notifications"
+              aria-label="Notifications"
             >
               🔔
               <span className="notification-dot"></span>
@@ -353,11 +595,13 @@ function Dashboard({ user, onLogout }) {
 
               <div className="avatar">
                 {profile.name
-                  ? profile.name.charAt(0).toUpperCase()
+                  ? profile.name
+                      .charAt(0)
+                      .toUpperCase()
                   : "R"}
               </div>
 
-              <div className="user-mini-info">
+              <div>
                 <strong>
                   {profile.name}
                 </strong>
@@ -373,38 +617,52 @@ function Dashboard({ user, onLogout }) {
 
         </header>
 
-
-        {/* =====================================
+        {/* =========================
             OVERVIEW
-        ===================================== */}
+        ========================= */}
 
         {activePage === "overview" && (
           <section className="dashboard-content">
 
-            <div className="welcome-banner">
+            {/* WELCOME HERO */}
 
-              <div>
-                <span className="welcome-label">
-                  ✨ Welcome back
+            <div className="welcome-hero">
+
+              <div className="hero-copy">
+
+                <span className="eyebrow">
+                  ✨ GOOD TO SEE YOU
                 </span>
 
                 <h2>
-                  Hello,{" "}
-                  <span>{profile.name}</span> 👋
+                  Make today
+                  <span> productive.</span>
                 </h2>
 
                 <p>
-                  Manage your tasks, profile and
-                  RAF AI project from one place.
+                  Stay focused, manage your tasks and
+                  keep your projects moving forward.
                 </p>
+
+                <div className="hero-date">
+                  📅 {formattedDate}
+                </div>
+
               </div>
 
-              <div className="welcome-art">
-                ✦
+              <div className="hero-decoration">
+
+                <div className="floating-orb orb-one"></div>
+                <div className="floating-orb orb-two"></div>
+
+                <div className="hero-circle">
+                  <span>RAF</span>
+                  <strong>AI</strong>
+                </div>
+
               </div>
 
             </div>
-
 
             {/* STATS */}
 
@@ -418,12 +676,13 @@ function Dashboard({ user, onLogout }) {
 
                 <div>
                   <span>Total Users</span>
-                  <strong>1,284</strong>
-                  <small>+12.5% this month</small>
+                  <strong>{demoStats.users}</strong>
+                  <small className="positive">
+                    ↗ +12.5% this month
+                  </small>
                 </div>
 
               </div>
-
 
               <div className="stat-card">
 
@@ -434,13 +693,12 @@ function Dashboard({ user, onLogout }) {
                 <div>
                   <span>Completed Tasks</span>
                   <strong>{completedTodos}</strong>
-                  <small>
-                    {completionPercentage}% completed
+                  <small className="positive">
+                    ↗ +8.2% this week
                   </small>
                 </div>
 
               </div>
-
 
               <div className="stat-card">
 
@@ -450,12 +708,13 @@ function Dashboard({ user, onLogout }) {
 
                 <div>
                   <span>Active Projects</span>
-                  <strong>24</strong>
-                  <small>4 due this week</small>
+                  <strong>{demoStats.projects}</strong>
+                  <small>
+                    4 due this week
+                  </small>
                 </div>
 
               </div>
-
 
               <div className="stat-card">
 
@@ -465,20 +724,21 @@ function Dashboard({ user, onLogout }) {
 
                 <div>
                   <span>Productivity</span>
-                  <strong>87%</strong>
-                  <small>+5.4% improvement</small>
+                  <strong>{demoStats.productivity}</strong>
+                  <small className="positive">
+                    ↗ +5.4% improvement
+                  </small>
                 </div>
 
               </div>
 
             </div>
 
-
             {/* MAIN GRID */}
 
             <div className="dashboard-grid">
 
-              {/* QUICK TASKS */}
+              {/* TODO */}
 
               <div className="dashboard-panel todo-panel">
 
@@ -486,23 +746,20 @@ function Dashboard({ user, onLogout }) {
 
                   <div>
                     <h2>Quick Tasks</h2>
-
                     <p>
                       Manage your daily tasks
                     </p>
                   </div>
 
                   <button
-                    className="text-button"
                     onClick={() =>
                       changePage("tasks")
                     }
                   >
-                    View All →
+                    View All
                   </button>
 
                 </div>
-
 
                 <div className="todo-input">
 
@@ -526,11 +783,9 @@ function Dashboard({ user, onLogout }) {
 
                 </div>
 
-
                 <div className="todo-list">
 
                   {todos.slice(0, 5).map((todo) => (
-
                     <div
                       className={
                         todo.completed
@@ -577,13 +832,11 @@ function Dashboard({ user, onLogout }) {
                       </button>
 
                     </div>
-
                   ))}
 
                 </div>
 
               </div>
-
 
               {/* ACTIVITY */}
 
@@ -593,20 +846,21 @@ function Dashboard({ user, onLogout }) {
 
                   <div>
                     <h2>Recent Activity</h2>
-
                     <p>
                       Latest account activity
                     </p>
                   </div>
 
-                </div>
+                  <span className="live-badge">
+                    ● Live
+                  </span>
 
+                </div>
 
                 <div className="activity-list">
 
                   <div className="activity">
-
-                    <div className="activity-icon purple">
+                    <div className="activity-icon">
                       ✓
                     </div>
 
@@ -623,13 +877,10 @@ function Dashboard({ user, onLogout }) {
                         10 minutes ago
                       </small>
                     </div>
-
                   </div>
 
-
                   <div className="activity">
-
-                    <div className="activity-icon blue">
+                    <div className="activity-icon">
                       🔐
                     </div>
 
@@ -646,13 +897,10 @@ function Dashboard({ user, onLogout }) {
                         35 minutes ago
                       </small>
                     </div>
-
                   </div>
 
-
                   <div className="activity">
-
-                    <div className="activity-icon green">
+                    <div className="activity-icon">
                       ☁
                     </div>
 
@@ -669,30 +917,26 @@ function Dashboard({ user, onLogout }) {
                         1 hour ago
                       </small>
                     </div>
-
                   </div>
 
-
                   <div className="activity">
-
-                    <div className="activity-icon orange">
+                    <div className="activity-icon">
                       ★
                     </div>
 
                     <div>
                       <strong>
-                        RAF AI Dashboard
+                        New project created
                       </strong>
 
                       <span>
-                        Project is running successfully
+                        RAF AI Dashboard
                       </span>
 
                       <small>
                         2 hours ago
                       </small>
                     </div>
-
                   </div>
 
                 </div>
@@ -701,6 +945,223 @@ function Dashboard({ user, onLogout }) {
 
             </div>
 
+            {/* TIMER + PRODUCTIVITY */}
+
+            <div className="feature-grid">
+
+              {/* TIMER */}
+
+              <div className="dashboard-panel timer-panel">
+
+                <div className="panel-header">
+
+                  <div>
+                    <span className="panel-kicker">
+                      FOCUS MODE
+                    </span>
+
+                    <h2>Focus Timer</h2>
+
+                    <p>
+                      Use Pomodoro sessions to stay focused.
+                    </p>
+                  </div>
+
+                  <div className="timer-status">
+                    {timerRunning
+                      ? "Running"
+                      : "Paused"}
+                  </div>
+
+                </div>
+
+                <div className="timer-modes">
+
+                  {[
+                    "Focus",
+                    "Short Break",
+                    "Long Break"
+                  ].map((mode) => (
+                    <button
+                      key={mode}
+                      className={
+                        timerMode === mode
+                          ? "timer-mode active"
+                          : "timer-mode"
+                      }
+                      onClick={() =>
+                        changeTimerMode(mode)
+                      }
+                    >
+                      {mode}
+                    </button>
+                  ))}
+
+                </div>
+
+                <div className="timer-display">
+
+                  <div
+                    className={
+                      timerRunning
+                        ? "timer-ring running"
+                        : "timer-ring"
+                    }
+                  >
+                    <div className="timer-inner">
+                      <span>
+                        {timerMode}
+                      </span>
+
+                      <strong>
+                        {formattedTimer}
+                      </strong>
+
+                      <small>
+                        {timerRunning
+                          ? "Stay focused"
+                          : "Ready when you are"}
+                      </small>
+                    </div>
+                  </div>
+
+                </div>
+
+                <div className="timer-controls">
+
+                  {!timerRunning ? (
+                    <button
+                      className="timer-primary"
+                      onClick={startTimer}
+                    >
+                      ▶ Start
+                    </button>
+                  ) : (
+                    <button
+                      className="timer-primary"
+                      onClick={pauseTimer}
+                    >
+                      ❚❚ Pause
+                    </button>
+                  )}
+
+                  <button
+                    className="timer-secondary"
+                    onClick={resetTimer}
+                  >
+                    ↻ Reset
+                  </button>
+
+                </div>
+
+                <div className="timer-extra">
+
+                  <button
+                    onClick={() =>
+                      addTimerMinutes(5)
+                    }
+                  >
+                    +5 min
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      addTimerMinutes(10)
+                    }
+                  >
+                    +10 min
+                  </button>
+
+                </div>
+
+              </div>
+
+              {/* PRODUCTIVITY */}
+
+              <div className="dashboard-panel productivity-panel">
+
+                <div className="panel-header">
+
+                  <div>
+                    <span className="panel-kicker">
+                      YOUR PERFORMANCE
+                    </span>
+
+                    <h2>Productivity</h2>
+
+                    <p>
+                      Your current productivity overview.
+                    </p>
+                  </div>
+
+                  <span className="score-circle">
+                    87
+                  </span>
+
+                </div>
+
+                <div className="productivity-progress">
+
+                  <div className="progress-label">
+                    <span>Weekly score</span>
+                    <strong>87%</strong>
+                  </div>
+
+                  <div className="large-progress">
+                    <div style={{ width: "87%" }}></div>
+                  </div>
+
+                </div>
+
+                <div className="productivity-items">
+
+                  <div>
+                    <span>Tasks completed</span>
+                    <strong>
+                      {completedTodos}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Tasks pending</span>
+                    <strong>
+                      {pendingTodos}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Focus sessions</span>
+                    <strong>12</strong>
+                  </div>
+
+                  <div>
+                    <span>Current streak</span>
+                    <strong>7 days</strong>
+                  </div>
+
+                </div>
+
+                <div className="streak-box">
+
+                  <div className="streak-fire">
+                    🔥
+                  </div>
+
+                  <div>
+                    <strong>
+                      7 day streak
+                    </strong>
+
+                    <span>
+                      Keep going! You're doing great.
+                    </span>
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
 
             {/* BOTTOM CARDS */}
 
@@ -715,21 +1176,18 @@ function Dashboard({ user, onLogout }) {
                 </strong>
 
                 <div className="progress">
-
                   <div
                     style={{
-                      width: `${completionPercentage}%`
+                      width: `${completionRate}%`
                     }}
                   ></div>
-
                 </div>
 
                 <small>
-                  Keep going! You're doing great.
+                  {completionRate}% completion rate
                 </small>
 
               </div>
-
 
               <div className="info-card">
 
@@ -744,7 +1202,6 @@ function Dashboard({ user, onLogout }) {
                 </small>
 
               </div>
-
 
               <div className="info-card">
 
@@ -762,13 +1219,97 @@ function Dashboard({ user, onLogout }) {
 
             </div>
 
+            {/* EXTRA DATA */}
+
+            <div className="extra-grid">
+
+              <div className="dashboard-panel mini-analytics">
+
+                <div className="panel-header">
+
+                  <div>
+                    <h2>Weekly Activity</h2>
+                    <p>
+                      Demo activity data
+                    </p>
+                  </div>
+
+                  <span className="growth">
+                    +18.4%
+                  </span>
+
+                </div>
+
+                <div className="mini-chart">
+
+                  {weeklyData.map((item) => (
+                    <div
+                      className="mini-bar-wrapper"
+                      key={item.day}
+                    >
+                      <div
+                        className="mini-bar"
+                        style={{
+                          height: `${item.value}%`
+                        }}
+                      ></div>
+
+                      <span>
+                        {item.day}
+                      </span>
+                    </div>
+                  ))}
+
+                </div>
+
+              </div>
+
+              {/* NOTES */}
+
+              <div className="dashboard-panel notes-panel">
+
+                <div className="panel-header">
+
+                  <div>
+                    <h2>Quick Notes</h2>
+                    <p>
+                      Keep something important here.
+                    </p>
+                  </div>
+
+                  {notesSaved && (
+                    <span className="saved-label">
+                      ✓ Saved
+                    </span>
+                  )}
+
+                </div>
+
+                <textarea
+                  value={notes}
+                  onChange={(e) =>
+                    setNotes(e.target.value)
+                  }
+                  placeholder="Write your notes..."
+                />
+
+                <button
+                  className="save-notes"
+                  onClick={saveNotes}
+                >
+                  Save Notes
+                </button>
+
+              </div>
+
+            </div>
+
           </section>
         )}
 
-
-        {/* =====================================
-            TASKS
-        ===================================== */}
+        {/* =========================
+            TASKS PAGE
+        ========================= */}
 
         {activePage === "tasks" && (
           <section className="page-section">
@@ -776,14 +1317,14 @@ function Dashboard({ user, onLogout }) {
             <div className="section-heading">
 
               <div>
-                <span className="section-label">
-                  TASK MANAGEMENT
+                <span className="panel-kicker">
+                  PRODUCTIVITY
                 </span>
 
                 <h2>Task Manager</h2>
 
                 <p>
-                  Create and manage your daily tasks.
+                  Create and manage your tasks.
                 </p>
               </div>
 
@@ -792,7 +1333,6 @@ function Dashboard({ user, onLogout }) {
               </span>
 
             </div>
-
 
             <div className="big-todo-input">
 
@@ -811,88 +1351,94 @@ function Dashboard({ user, onLogout }) {
               />
 
               <button onClick={addTodo}>
-                + Add Task
+                Add Task
               </button>
 
             </div>
 
+            <div className="task-summary">
+
+              <div>
+                <span>Total</span>
+                <strong>{todos.length}</strong>
+              </div>
+
+              <div>
+                <span>Completed</span>
+                <strong>{completedTodos}</strong>
+              </div>
+
+              <div>
+                <span>Pending</span>
+                <strong>{pendingTodos}</strong>
+              </div>
+
+              <div>
+                <span>Progress</span>
+                <strong>{completionRate}%</strong>
+              </div>
+
+            </div>
 
             <div className="full-task-list">
 
-              {todos.length === 0 ? (
+              {todos.map((todo) => (
+                <div
+                  className={
+                    todo.completed
+                      ? "full-task completed"
+                      : "full-task"
+                  }
+                  key={todo.id}
+                >
 
-                <div className="empty-state">
-                  <div>✓</div>
-                  <h3>No tasks yet</h3>
-                  <p>
-                    Add your first task above.
-                  </p>
-                </div>
-
-              ) : (
-
-                todos.map((todo) => (
-
-                  <div
-                    className={
-                      todo.completed
-                        ? "full-task completed"
-                        : "full-task"
+                  <button
+                    className="check-button"
+                    onClick={() =>
+                      toggleTodo(todo.id)
                     }
-                    key={todo.id}
                   >
+                    {todo.completed ? "✓" : ""}
+                  </button>
 
-                    <button
-                      className="check-button"
-                      onClick={() =>
-                        toggleTodo(todo.id)
-                      }
-                    >
-                      {todo.completed ? "✓" : ""}
-                    </button>
+                  <div className="full-task-info">
 
-                    <div className="full-task-info">
+                    <strong>
+                      {todo.title}
+                    </strong>
 
-                      <strong>
-                        {todo.title}
-                      </strong>
-
-                      <span>
-                        Category: {todo.category}
-                      </span>
-
-                    </div>
-
-                    <span
-                      className={`priority ${todo.priority.toLowerCase()}`}
-                    >
-                      {todo.priority}
+                    <span>
+                      Category: {todo.category}
                     </span>
-
-                    <button
-                      className="delete-button"
-                      onClick={() =>
-                        deleteTodo(todo.id)
-                      }
-                    >
-                      Delete
-                    </button>
 
                   </div>
 
-                ))
+                  <span
+                    className={`priority ${todo.priority.toLowerCase()}`}
+                  >
+                    {todo.priority}
+                  </span>
 
-              )}
+                  <button
+                    className="delete-button"
+                    onClick={() =>
+                      deleteTodo(todo.id)
+                    }
+                  >
+                    Delete
+                  </button>
+
+                </div>
+              ))}
 
             </div>
 
           </section>
         )}
 
-
-        {/* =====================================
+        {/* =========================
             PROFILE
-        ===================================== */}
+        ========================= */}
 
         {activePage === "profile" && (
           <section className="page-section">
@@ -901,12 +1447,14 @@ function Dashboard({ user, onLogout }) {
 
               <div className="large-avatar">
                 {profile.name
-                  ? profile.name.charAt(0).toUpperCase()
+                  ? profile.name
+                      .charAt(0)
+                      .toUpperCase()
                   : "R"}
               </div>
 
               <div>
-                <span className="section-label">
+                <span className="panel-kicker">
                   ACCOUNT
                 </span>
 
@@ -921,140 +1469,165 @@ function Dashboard({ user, onLogout }) {
 
             </div>
 
-
             {message && (
               <div className="success-message">
                 ✓ {message}
               </div>
             )}
 
+            <div className="profile-layout">
 
-            <div className="form-card">
+              <div className="form-card">
 
-              <div className="form-card-header">
-                <div>
-                  <span className="section-label">
-                    PROFILE SETTINGS
-                  </span>
+                <h2>Personal Information</h2>
 
-                  <h2>
-                    Personal Information
-                  </h2>
+                <p className="form-description">
+                  Update your account information below.
+                </p>
+
+                <div className="profile-form">
+
+                  <label>
+                    Full Name
+
+                    <input
+                      value={profile.name}
+                      onChange={(e) =>
+                        setProfile({
+                          ...profile,
+                          name: e.target.value
+                        })
+                      }
+                    />
+                  </label>
+
+                  <label>
+                    Email
+
+                    <input
+                      value={profile.email}
+                      disabled
+                    />
+                  </label>
+
+                  <label>
+                    Phone
+
+                    <input
+                      value={profile.phone}
+                      onChange={(e) =>
+                        setProfile({
+                          ...profile,
+                          phone: e.target.value
+                        })
+                      }
+                    />
+                  </label>
+
                 </div>
-              </div>
 
-
-              <div className="profile-form">
-
-                <label>
-                  Full Name
-
-                  <input
-                    type="text"
-                    value={profile.name}
-                    onChange={(e) =>
-                      setProfile({
-                        ...profile,
-                        name: e.target.value
-                      })
-                    }
-                  />
-                </label>
-
-
-                <label>
-                  Email
-
-                  <input
-                    type="email"
-                    value={profile.email}
-                    disabled
-                  />
-                </label>
-
-
-                <label>
-                  Phone
-
-                  <input
-                    type="tel"
-                    placeholder="+91 XXXXX XXXXX"
-                    value={profile.phone}
-                    onChange={(e) =>
-                      setProfile({
-                        ...profile,
-                        phone: e.target.value
-                      })
-                    }
-                  />
-                </label>
+                <button
+                  className="save-button"
+                  onClick={updateProfile}
+                >
+                  Save Changes
+                </button>
 
               </div>
 
+              <div className="profile-side-card">
 
-              <button
-                className="save-button"
-                onClick={updateProfile}
-              >
-                Save Changes →
-              </button>
+                <div className="profile-security-icon">
+                  🔐
+                </div>
+
+                <h3>
+                  Account Security
+                </h3>
+
+                <p>
+                  Your account is currently protected
+                  by Firebase Authentication.
+                </p>
+
+                <div className="security-status">
+                  <span></span>
+                  Authentication Active
+                </div>
+
+                <div className="security-row">
+                  <span>Provider</span>
+                  <strong>Firebase</strong>
+                </div>
+
+                <div className="security-row">
+                  <span>Account status</span>
+                  <strong>Active</strong>
+                </div>
+
+              </div>
 
             </div>
 
           </section>
         )}
 
-
-        {/* =====================================
+        {/* =========================
             ANALYTICS
-        ===================================== */}
+        ========================= */}
 
         {activePage === "analytics" && (
           <section className="page-section">
 
             <div className="analytics-header">
 
-              <span className="section-label">
-                PERFORMANCE
+              <div>
+                <span className="panel-kicker">
+                  PERFORMANCE CENTER
+                </span>
+
+                <h2>
+                  Analytics Overview
+                </h2>
+
+                <p>
+                  Your application performance
+                </p>
+              </div>
+
+              <span className="analytics-date">
+                Last 7 days
               </span>
 
-              <h2>Analytics Overview</h2>
-
-              <p>
-                Your application performance overview.
-              </p>
-
             </div>
-
 
             <div className="analytics-grid">
 
               <div className="analytics-card">
                 <span>Monthly Users</span>
-                <strong>12,849</strong>
+                <strong>{demoStats.users}</strong>
                 <b>+18.4%</b>
               </div>
 
               <div className="analytics-card">
                 <span>Sessions</span>
-                <strong>38,291</strong>
+                <strong>{demoStats.sessions}</strong>
                 <b>+12.7%</b>
               </div>
 
               <div className="analytics-card">
                 <span>Conversion</span>
-                <strong>68.4%</strong>
+                <strong>{demoStats.conversion}</strong>
                 <b>+7.2%</b>
               </div>
 
               <div className="analytics-card">
                 <span>Performance</span>
-                <strong>94.8%</strong>
+                <strong>{demoStats.performance}</strong>
                 <b>+4.1%</b>
               </div>
 
             </div>
-
 
             <div className="chart-card">
 
@@ -1068,383 +1641,103 @@ function Dashboard({ user, onLogout }) {
                   </p>
                 </div>
 
-              </div>
+                <span className="growth">
+                  +18.4%
+                </span>
 
+              </div>
 
               <div className="fake-chart">
 
-                <div style={{ height: "35%" }}>
-                  <span>Mon</span>
-                </div>
-
-                <div style={{ height: "60%" }}>
-                  <span>Tue</span>
-                </div>
-
-                <div style={{ height: "45%" }}>
-                  <span>Wed</span>
-                </div>
-
-                <div style={{ height: "80%" }}>
-                  <span>Thu</span>
-                </div>
-
-                <div style={{ height: "65%" }}>
-                  <span>Fri</span>
-                </div>
-
-                <div style={{ height: "90%" }}>
-                  <span>Sat</span>
-                </div>
-
-                <div style={{ height: "75%" }}>
-                  <span>Sun</span>
-                </div>
+                {weeklyData.map((item) => (
+                  <div
+                    style={{
+                      height: `${item.value}%`
+                    }}
+                    key={item.day}
+                  >
+                    <span>
+                      {item.day}
+                    </span>
+                  </div>
+                ))}
 
               </div>
 
             </div>
 
-          </section>
-        )}
+            <div className="analytics-bottom">
 
+              <div className="dashboard-panel">
 
-        {/* =====================================
-            ABOUT
-        ===================================== */}
+                <div className="panel-header">
 
-        {activePage === "about" && (
-          <section className="page-section">
-
-            <div className="about-hero">
-
-              <span className="welcome-label">
-                📚 ABOUT THE PROJECT
-              </span>
-
-              <h2>
-                About <span>RAF AI</span>
-              </h2>
-
-              <p>
-                RAF AI is a modern React-based web
-                application created to demonstrate
-                authentication, user management,
-                database integration and a responsive
-                dashboard interface.
-              </p>
-
-            </div>
-
-
-            <div className="content-card about-card">
-
-              <span className="section-label">
-                THE PROJECT
-              </span>
-
-              <h2>
-                How was this project built?
-              </h2>
-
-              <p>
-                This project is built using modern web
-                technologies. The frontend is developed
-                with React and Vite, while Firebase services
-                are used for authentication and cloud data
-                management.
-              </p>
-
-              <p>
-                The application is separated into reusable
-                React components so that every part of the
-                application can be maintained independently.
-              </p>
-
-            </div>
-
-
-            <div className="tech-grid">
-
-              <div className="tech-card">
-                <div className="tech-number">01</div>
-                <h3>React</h3>
-                <p>
-                  React is used to build the user interface
-                  with reusable components and state
-                  management.
-                </p>
-              </div>
-
-              <div className="tech-card">
-                <div className="tech-number">02</div>
-                <h3>Vite</h3>
-                <p>
-                  Vite provides a fast development server
-                  and production build system.
-                </p>
-              </div>
-
-              <div className="tech-card">
-                <div className="tech-number">03</div>
-                <h3>Firebase Authentication</h3>
-                <p>
-                  Firebase Authentication handles email,
-                  password and Google authentication.
-                </p>
-              </div>
-
-              <div className="tech-card">
-                <div className="tech-number">04</div>
-                <h3>Realtime Database</h3>
-                <p>
-                  Firebase Realtime Database stores user
-                  profile information and application data.
-                </p>
-              </div>
-
-              <div className="tech-card">
-                <div className="tech-number">05</div>
-                <h3>JavaScript</h3>
-                <p>
-                  JavaScript powers application logic,
-                  events, API requests and dynamic content.
-                </p>
-              </div>
-
-              <div className="tech-card">
-                <div className="tech-number">06</div>
-                <h3>CSS</h3>
-                <p>
-                  Custom CSS provides responsive layouts,
-                  cards, navigation, buttons and animations.
-                </p>
-              </div>
-
-            </div>
-
-
-            <div className="content-card">
-
-              <span className="section-label">
-                FEATURES
-              </span>
-
-              <h2>
-                Project Features
-              </h2>
-
-              <div className="feature-list">
-
-                <div>
-                  <span>✓</span>
-                  <p>Responsive dashboard</p>
-                </div>
-
-                <div>
-                  <span>✓</span>
-                  <p>Email and password authentication</p>
-                </div>
-
-                <div>
-                  <span>✓</span>
-                  <p>Google authentication</p>
-                </div>
-
-                <div>
-                  <span>✓</span>
-                  <p>User profile management</p>
-                </div>
-
-                <div>
-                  <span>✓</span>
-                  <p>Firebase Realtime Database integration</p>
-                </div>
-
-                <div>
-                  <span>✓</span>
-                  <p>Task manager and todo system</p>
-                </div>
-
-                <div>
-                  <span>✓</span>
-                  <p>Analytics dashboard</p>
-                </div>
-
-                <div>
-                  <span>✓</span>
-                  <p>Contact form interface</p>
-                </div>
-
-              </div>
-
-            </div>
-
-          </section>
-        )}
-
-
-        {/* =====================================
-            CONTACT
-        ===================================== */}
-
-        {activePage === "contact" && (
-          <section className="page-section">
-
-            <div className="about-hero">
-
-              <span className="welcome-label">
-                💬 GET IN TOUCH
-              </span>
-
-              <h2>
-                Contact <span>Us</span>
-              </h2>
-
-              <p>
-                Have a question, suggestion or feedback?
-                Send us a message using the form below.
-              </p>
-
-            </div>
-
-
-            <div className="contact-layout">
-
-              <div className="contact-info">
-
-                <div className="contact-info-card">
-
-                  <div className="contact-icon">
-                    📧
+                  <div>
+                    <h2>Performance Metrics</h2>
+                    <p>
+                      Current system overview
+                    </p>
                   </div>
 
-                  <h3>Email</h3>
-
-                  <p>
-                    raveeskak@gmail.com
-                  </p>
-
                 </div>
 
+                <div className="metric-list">
 
-                <div className="contact-info-card">
+                  <div className="metric">
+                    <div>
+                      <span>System uptime</span>
+                      <strong>99.9%</strong>
+                    </div>
 
-                  <div className="contact-icon">
-                    ⚡
+                    <div className="metric-progress">
+                      <div style={{ width: "99%" }}></div>
+                    </div>
                   </div>
 
-                  <h3>Response</h3>
+                  <div className="metric">
+                    <div>
+                      <span>User satisfaction</span>
+                      <strong>94%</strong>
+                    </div>
 
-                  <p>
-                    We will try to respond as soon
-                    as possible.
-                  </p>
-
-                </div>
-
-
-                <div className="contact-info-card">
-
-                  <div className="contact-icon">
-                    🌎
+                    <div className="metric-progress">
+                      <div style={{ width: "94%" }}></div>
+                    </div>
                   </div>
 
-                  <h3>Available</h3>
+                  <div className="metric">
+                    <div>
+                      <span>Task efficiency</span>
+                      <strong>87%</strong>
+                    </div>
 
-                  <p>
-                    Available online for questions
-                    and feedback.
-                  </p>
+                    <div className="metric-progress">
+                      <div style={{ width: "87%" }}></div>
+                    </div>
+                  </div>
 
                 </div>
 
               </div>
 
+              <div className="dashboard-panel achievement-panel">
 
-              <div className="content-card contact-form-card">
-
-                <span className="section-label">
-                  MESSAGE
+                <span className="achievement-icon">
+                  🏆
                 </span>
 
                 <h2>
-                  Send a Message
+                  Great progress!
                 </h2>
 
+                <p>
+                  You have completed {completedTodos}
+                  tasks and maintained a 7-day streak.
+                </p>
 
-                {contactSent && (
-                  <div className="success-message">
-                    ✓ Your message has been submitted.
-                  </div>
-                )}
-
-
-                <form onSubmit={handleContactSubmit}>
-
-                  <div className="form-row">
-
-                    <div className="form-field">
-
-                      <label>
-                        Name
-                      </label>
-
-                      <input
-                        name="name"
-                        type="text"
-                        placeholder="Your name"
-                        value={contact.name}
-                        onChange={handleContactInput}
-                      />
-
-                    </div>
-
-
-                    <div className="form-field">
-
-                      <label>
-                        Email
-                      </label>
-
-                      <input
-                        name="email"
-                        type="email"
-                        placeholder="you@example.com"
-                        value={contact.email}
-                        onChange={handleContactInput}
-                      />
-
-                    </div>
-
-                  </div>
-
-
-                  <div className="form-field">
-
-                    <label>
-                      Message
-                    </label>
-
-                    <textarea
-                      name="message"
-                      rows="7"
-                      placeholder="Write your message..."
-                      value={contact.message}
-                      onChange={handleContactInput}
-                    />
-
-                  </div>
-
-
-                  <button
-                    type="submit"
-                    className="send-button"
-                  >
-                    Send Message →
-                  </button>
-
-                </form>
+                <strong>
+                  Keep it up 🚀
+                </strong>
 
               </div>
 
@@ -1453,10 +1746,9 @@ function Dashboard({ user, onLogout }) {
           </section>
         )}
 
-
-        {/* =====================================
+        {/* =========================
             SETTINGS
-        ===================================== */}
+        ========================= */}
 
         {activePage === "settings" && (
           <section className="page-section">
@@ -1464,23 +1756,18 @@ function Dashboard({ user, onLogout }) {
             <div className="section-heading">
 
               <div>
-
-                <span className="section-label">
+                <span className="panel-kicker">
                   PREFERENCES
                 </span>
 
-                <h2>
-                  Settings
-                </h2>
+                <h2>Settings</h2>
 
                 <p>
                   Manage your dashboard preferences.
                 </p>
-
               </div>
 
             </div>
-
 
             <div className="settings-card">
 
@@ -1496,13 +1783,22 @@ function Dashboard({ user, onLogout }) {
                   </span>
                 </div>
 
-                <input
-                  type="checkbox"
-                  defaultChecked
-                />
+                <button
+                  className={
+                    settings.emailNotifications
+                      ? "switch active"
+                      : "switch"
+                  }
+                  onClick={() =>
+                    toggleSetting(
+                      "emailNotifications"
+                    )
+                  }
+                >
+                  <span></span>
+                </button>
 
               </div>
-
 
               <div className="setting-row">
 
@@ -1516,13 +1812,22 @@ function Dashboard({ user, onLogout }) {
                   </span>
                 </div>
 
-                <input
-                  type="checkbox"
-                  defaultChecked
-                />
+                <button
+                  className={
+                    settings.activityAlerts
+                      ? "switch active"
+                      : "switch"
+                  }
+                  onClick={() =>
+                    toggleSetting(
+                      "activityAlerts"
+                    )
+                  }
+                >
+                  <span></span>
+                </button>
 
               </div>
-
 
               <div className="setting-row">
 
@@ -1536,10 +1841,70 @@ function Dashboard({ user, onLogout }) {
                   </span>
                 </div>
 
-                <input
-                  type="checkbox"
-                  defaultChecked
-                />
+                <button
+                  className={
+                    settings.autoSync
+                      ? "switch active"
+                      : "switch"
+                  }
+                  onClick={() =>
+                    toggleSetting("autoSync")
+                  }
+                >
+                  <span></span>
+                </button>
+
+              </div>
+
+            </div>
+
+            <div className="settings-info-grid">
+
+              <div className="settings-info-card">
+
+                <span>🎨</span>
+
+                <div>
+                  <strong>
+                    Interface
+                  </strong>
+
+                  <p>
+                    Light purple dashboard theme
+                  </p>
+                </div>
+
+              </div>
+
+              <div className="settings-info-card">
+
+                <span>☁️</span>
+
+                <div>
+                  <strong>
+                    Cloud Sync
+                  </strong>
+
+                  <p>
+                    Firebase connection enabled
+                  </p>
+                </div>
+
+              </div>
+
+              <div className="settings-info-card">
+
+                <span>🛡️</span>
+
+                <div>
+                  <strong>
+                    Security
+                  </strong>
+
+                  <p>
+                    Protected authentication system
+                  </p>
+                </div>
 
               </div>
 
@@ -1547,6 +1912,24 @@ function Dashboard({ user, onLogout }) {
 
           </section>
         )}
+
+        {/* FOOTER */}
+
+        <footer className="dashboard-footer">
+
+          <div>
+            <strong>RAF AI</strong>
+
+            <span>
+              Smart productivity workspace
+            </span>
+          </div>
+
+          <p>
+            © 2026 RAF AI. All rights reserved.
+          </p>
+
+        </footer>
 
       </main>
 
