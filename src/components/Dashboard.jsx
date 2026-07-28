@@ -1,249 +1,382 @@
 import { useEffect, useMemo, useState } from "react";
 import "./Dashboard.css";
+import { DATABASE_URL } from "../firebase.js";
+
+const OWNER_EMAIL = "raveeskak@gmail.com";
+
+const initialTodos = [
+  {
+    id: 1,
+    title: "Complete Firebase project",
+    category: "Development",
+    priority: "High",
+    completed: false
+  },
+  {
+    id: 2,
+    title: "Design dashboard",
+    category: "Design",
+    priority: "Medium",
+    completed: true
+  },
+  {
+    id: 3,
+    title: "Update user profile",
+    category: "Personal",
+    priority: "Low",
+    completed: false
+  },
+  {
+    id: 4,
+    title: "Test Google Login",
+    category: "Testing",
+    priority: "High",
+    completed: false
+  }
+];
+
+const countries = [
+  {
+    flag: "🇬🇧",
+    city: "London",
+    zone: "Europe/London"
+  },
+  {
+    flag: "🇦🇪",
+    city: "Dubai",
+    zone: "Asia/Dubai"
+  },
+  {
+    flag: "🇸🇦",
+    city: "Riyadh",
+    zone: "Asia/Riyadh"
+  },
+  {
+    flag: "🇵🇰",
+    city: "Karachi",
+    zone: "Asia/Karachi"
+  },
+  {
+    flag: "🇮🇳",
+    city: "New Delhi",
+    zone: "Asia/Kolkata"
+  },
+  {
+    flag: "🇮🇩",
+    city: "Jakarta",
+    zone: "Asia/Jakarta"
+  },
+  {
+    flag: "🇺🇸",
+    city: "New York",
+    zone: "America/New_York"
+  },
+  {
+    flag: "🇯🇵",
+    city: "Tokyo",
+    zone: "Asia/Tokyo"
+  },
+  {
+    flag: "🇸🇬",
+    city: "Singapore",
+    zone: "Asia/Singapore"
+  },
+  {
+    flag: "🇦🇺",
+    city: "Sydney",
+    zone: "Australia/Sydney"
+  }
+];
+
+const defaultOrders = [
+  {
+    id: "ORD-1001",
+    customer: "Rahul Kumar",
+    email: "rahul@example.com",
+    date: "2026-07-28",
+    amount: 12999,
+    status: "Completed"
+  },
+  {
+    id: "ORD-1002",
+    customer: "Aarav Khan",
+    email: "aarav@example.com",
+    date: "2026-07-27",
+    amount: 8499,
+    status: "Pending"
+  },
+  {
+    id: "ORD-1003",
+    customer: "Sarah Williams",
+    email: "sarah@example.com",
+    date: "2026-07-26",
+    amount: 22999,
+    status: "Completed"
+  },
+  {
+    id: "ORD-1004",
+    customer: "Zain Malik",
+    email: "zain@example.com",
+    date: "2026-07-25",
+    amount: 5499,
+    status: "Failed"
+  },
+  {
+    id: "ORD-1005",
+    customer: "Daniel Smith",
+    email: "daniel@example.com",
+    date: "2026-07-24",
+    amount: 15999,
+    status: "Completed"
+  }
+];
 
 function Dashboard({ user, onLogout }) {
+  const isOwner =
+    user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase() ||
+    user?.role === "owner";
+
   const [activePage, setActivePage] = useState("overview");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+
+  const [mobileSidebar, setMobileSidebar] = useState(false);
+
+  const [darkMode, setDarkMode] = useState(
+    localStorage.getItem("raf_theme") === "dark"
+  );
+
+  const [language, setLanguage] = useState("IN");
+
+  const [search, setSearch] = useState("");
+
+  const [showNotifications, setShowNotifications] =
+    useState(false);
+
+  const [showProfileMenu, setShowProfileMenu] =
+    useState(false);
+
+  const [showQuickAction, setShowQuickAction] =
+    useState(false);
+
+  const [showChat, setShowChat] = useState(false);
+
+  const [showShortcuts, setShowShortcuts] =
+    useState(false);
+
   const [zenMode, setZenMode] = useState(false);
 
-  const [globalSearch, setGlobalSearch] = useState("");
-  const [language, setLanguage] = useState("English");
-  const [currency, setCurrency] = useState("INR");
-
-  const [notifications, setNotifications] = useState(3);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showQuickActions, setShowQuickActions] = useState(false);
-  const [showShortcuts, setShowShortcuts] = useState(false);
-  const [showChat, setShowChat] = useState(false);
-  const [showBugReport, setShowBugReport] = useState(false);
-
-  const [autoRefresh, setAutoRefresh] = useState("off");
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastRefresh, setLastRefresh] = useState(new Date());
-
-  // =====================================================
-  // TODO
-  // =====================================================
-
-  const [todos, setTodos] = useState([
+  const [notifications, setNotifications] = useState([
     {
       id: 1,
-      title: "Complete Firebase project",
-      category: "Development",
-      priority: "High",
-      completed: false
+      title: "Welcome to RAF AI",
+      text: "Your dashboard is ready.",
+      time: "Just now",
+      read: false
     },
     {
       id: 2,
-      title: "Design dashboard",
-      category: "Design",
-      priority: "Medium",
-      completed: true
+      title: "Database connected",
+      text: "Firebase connection is active.",
+      time: "10 min ago",
+      read: false
     },
     {
       id: 3,
-      title: "Update user profile",
-      category: "Personal",
-      priority: "Low",
-      completed: false
-    },
-    {
-      id: 4,
-      title: "Test Google Login",
-      category: "Testing",
-      priority: "High",
-      completed: false
+      title: "Weekly report",
+      text: "Your productivity improved by 8.4%.",
+      time: "1 hour ago",
+      read: true
     }
   ]);
 
-  const [newTodo, setNewTodo] = useState("");
+  const [todos, setTodos] = useState(() => {
+    try {
+      return JSON.parse(
+        localStorage.getItem("raf_todos")
+      ) || initialTodos;
+    } catch {
+      return initialTodos;
+    }
+  });
 
-  // =====================================================
-  // PROFILE
-  // =====================================================
+  const [newTodo, setNewTodo] = useState("");
 
   const [profile, setProfile] = useState({
     name: user?.name || "RAF User",
     email: user?.email || "user@example.com",
-    phone: user?.phone || "+91 9876543210"
+    phone: user?.phone || "",
+    role:
+      user?.role ||
+      (user?.email?.toLowerCase() ===
+      OWNER_EMAIL.toLowerCase()
+        ? "owner"
+        : "user")
   });
 
   const [message, setMessage] = useState("");
 
-  // =====================================================
-  // NOTES
-  // =====================================================
-
   const [notes, setNotes] = useState(
-    localStorage.getItem("raf_notes") || ""
+    () =>
+      localStorage.getItem("raf_notes") ||
+      "Remember to review the weekly performance report."
   );
 
-  // =====================================================
-  // TIMER
-  // =====================================================
+  const [clockTime, setClockTime] = useState(
+    new Date()
+  );
 
-  const [timerMode, setTimerMode] = useState("pomodoro");
   const [timerSeconds, setTimerSeconds] = useState(25 * 60);
-  const [timerRunning, setTimerRunning] = useState(false);
 
-  const timerPresets = {
-    pomodoro: 25 * 60,
-    short: 5 * 60,
-    long: 15 * 60
-  };
+  const [timerRunning, setTimerRunning] =
+    useState(false);
 
-  // =====================================================
-  // CLOCKS
-  // =====================================================
+  const [timerMode, setTimerMode] =
+    useState("Pomodoro");
 
-  const cities = [
-    {
-      city: "London",
-      country: "UK",
-      flag: "🇬🇧",
-      zone: "Europe/London"
-    },
-    {
-      city: "Dubai",
-      country: "UAE",
-      flag: "🇦🇪",
-      zone: "Asia/Dubai"
-    },
-    {
-      city: "Riyadh",
-      country: "Saudi Arabia",
-      flag: "🇸🇦",
-      zone: "Asia/Riyadh"
-    },
-    {
-      city: "Karachi",
-      country: "Pakistan",
-      flag: "🇵🇰",
-      zone: "Asia/Karachi"
-    },
-    {
-      city: "New Delhi",
-      country: "India",
-      flag: "🇮🇳",
-      zone: "Asia/Kolkata"
-    },
-    {
-      city: "Jakarta",
-      country: "Indonesia",
-      flag: "🇮🇩",
-      zone: "Asia/Jakarta"
-    },
-    {
-      city: "New York",
-      country: "USA",
-      flag: "🇺🇸",
-      zone: "America/New_York"
-    },
-    {
-      city: "Tokyo",
-      country: "Japan",
-      flag: "🇯🇵",
-      zone: "Asia/Tokyo"
-    },
-    {
-      city: "Singapore",
-      country: "Singapore",
-      flag: "🇸🇬",
-      zone: "Asia/Singapore"
-    },
-    {
-      city: "Sydney",
-      country: "Australia",
-      flag: "🇦🇺",
-      zone: "Australia/Sydney"
+  const [streak] = useState(7);
+
+  const [orders, setOrders] = useState(() => {
+    try {
+      return (
+        JSON.parse(
+          localStorage.getItem("raf_orders")
+        ) || defaultOrders
+      );
+    } catch {
+      return defaultOrders;
     }
-  ];
-
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  // =====================================================
-  // ORDERS
-  // =====================================================
-
-  const [orders, setOrders] = useState([
-    {
-      id: "#RAF-1001",
-      customer: "Rahul Sharma",
-      email: "rahul@example.com",
-      date: "28 Jul 2026",
-      time: "10:24 AM",
-      amount: 12999,
-      status: "Completed"
-    },
-    {
-      id: "#RAF-1002",
-      customer: "Ayesha Khan",
-      email: "ayesha@example.com",
-      date: "28 Jul 2026",
-      time: "09:18 AM",
-      amount: 8499,
-      status: "Pending"
-    },
-    {
-      id: "#RAF-1003",
-      customer: "Arman Malik",
-      email: "arman@example.com",
-      date: "27 Jul 2026",
-      time: "07:42 PM",
-      amount: 18999,
-      status: "Completed"
-    },
-    {
-      id: "#RAF-1004",
-      customer: "Sarah Wilson",
-      email: "sarah@example.com",
-      date: "27 Jul 2026",
-      time: "05:32 PM",
-      amount: 4999,
-      status: "Failed"
-    },
-    {
-      id: "#RAF-1005",
-      customer: "Daniel Lee",
-      email: "daniel@example.com",
-      date: "26 Jul 2026",
-      time: "03:21 PM",
-      amount: 24999,
-      status: "Completed"
-    },
-    {
-      id: "#RAF-1006",
-      customer: "Zoya Ahmed",
-      email: "zoya@example.com",
-      date: "26 Jul 2026",
-      time: "12:15 PM",
-      amount: 6999,
-      status: "Pending"
-    }
-  ]);
+  });
 
   const [orderSearch, setOrderSearch] = useState("");
-  const [orderStatus, setOrderStatus] = useState("All");
-  const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  // =====================================================
-  // CHAT
-  // =====================================================
+  const [orderStatus, setOrderStatus] =
+    useState("All");
 
-  const [chatMessages, setChatMessages] = useState([
-    {
-      id: 1,
-      from: "Support",
-      text: "Hello! How can we help you?"
-    }
-  ]);
+  const [rowsPerPage, setRowsPerPage] =
+    useState(5);
 
-  const [chatInput, setChatInput] = useState("");
+  const [currentOrderPage, setCurrentOrderPage] =
+    useState(1);
 
-  // =====================================================
-  // TIMER EFFECT
-  // =====================================================
+  const [selectedOrders, setSelectedOrders] =
+    useState([]);
+
+  const [showOrderModal, setShowOrderModal] =
+    useState(false);
+
+  const [newOrder, setNewOrder] = useState({
+    customer: "",
+    email: "",
+    amount: "",
+    status: "Pending"
+  });
+
+  const [users, setUsers] = useState([]);
+
+  const [usersLoading, setUsersLoading] =
+    useState(false);
+
+  const [userSearch, setUserSearch] =
+    useState("");
+
+  const [userRoleFilter, setUserRoleFilter] =
+    useState("All");
+
+  const [selectedUser, setSelectedUser] =
+    useState(null);
+
+  const [autoRefresh, setAutoRefresh] =
+    useState("Off");
+
+  const [currency, setCurrency] =
+    useState("INR");
+
+  const [weeklyMode, setWeeklyMode] =
+    useState("Weekly");
+
+  const [activityRefresh, setActivityRefresh] =
+    useState(0);
+
+  const [chatMessage, setChatMessage] =
+    useState("");
+
+  const [chatMessages, setChatMessages] =
+    useState([
+      {
+        id: 1,
+        sender: "RAF Support",
+        text: "Hello! How can we help you?",
+        mine: false
+      }
+    ]);
+
+  const completedTodos = todos.filter(
+    (todo) => todo.completed
+  ).length;
+
+  const pendingTodos = todos.filter(
+    (todo) => !todo.completed
+  ).length;
+
+  const productivityScore = Math.min(
+    100,
+    Math.round(
+      60 +
+        completedTodos * 7 +
+        (timerMode === "Focus" ? 10 : 0)
+    )
+  );
+
+  const unreadCount = notifications.filter(
+    (notification) => !notification.read
+  ).length;
+
+  /* =========================
+     PERSISTENCE
+  ========================= */
+
+  useEffect(() => {
+    localStorage.setItem(
+      "raf_todos",
+      JSON.stringify(todos)
+    );
+  }, [todos]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "raf_notes",
+      notes
+    );
+  }, [notes]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "raf_orders",
+      JSON.stringify(orders)
+    );
+  }, [orders]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "raf_theme",
+      darkMode ? "dark" : "light"
+    );
+  }, [darkMode]);
+
+  /* =========================
+     LIVE CLOCK
+  ========================= */
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setClockTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  /* =========================
+     TIMER
+  ========================= */
 
   useEffect(() => {
     if (!timerRunning) return;
@@ -254,14 +387,23 @@ function Dashboard({ user, onLogout }) {
           clearInterval(interval);
           setTimerRunning(false);
 
-          if ("Notification" in window) {
-            if (Notification.permission === "granted") {
-              new Notification("RAF AI Timer", {
-                body: "Your timer has finished!"
-              });
-            } else if (Notification.permission !== "denied") {
-              Notification.requestPermission();
-            }
+          addNotification(
+            "Timer completed",
+            "Your focus session has finished."
+          );
+
+          if (
+            "Notification" in window &&
+            Notification.permission ===
+              "granted"
+          ) {
+            new Notification(
+              "RAF AI Timer Completed",
+              {
+                body:
+                  "Your focus session is complete."
+              }
+            );
           }
 
           return 0;
@@ -274,24 +416,12 @@ function Dashboard({ user, onLogout }) {
     return () => clearInterval(interval);
   }, [timerRunning]);
 
-  // =====================================================
-  // CLOCK EFFECT
-  // =====================================================
+  /* =========================
+     AUTO REFRESH
+  ========================= */
 
   useEffect(() => {
-    const clockInterval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(clockInterval);
-  }, []);
-
-  // =====================================================
-  // AUTO REFRESH
-  // =====================================================
-
-  useEffect(() => {
-    if (autoRefresh === "off") return;
+    if (autoRefresh === "Off") return;
 
     const seconds =
       autoRefresh === "5s"
@@ -301,15 +431,17 @@ function Dashboard({ user, onLogout }) {
         : 60000;
 
     const interval = setInterval(() => {
-      refreshActivity();
+      setActivityRefresh(
+        (value) => value + 1
+      );
     }, seconds);
 
     return () => clearInterval(interval);
   }, [autoRefresh]);
 
-  // =====================================================
-  // KEYBOARD SHORTCUT
-  // =====================================================
+  /* =========================
+     KEYBOARD SHORTCUT
+  ========================= */
 
   useEffect(() => {
     const handler = (event) => {
@@ -325,37 +457,165 @@ function Dashboard({ user, onLogout }) {
 
       if (event.key === "Escape") {
         setShowNotifications(false);
-        setShowQuickActions(false);
-        setShowShortcuts(false);
+        setShowProfileMenu(false);
+        setShowQuickAction(false);
         setShowChat(false);
-        setShowBugReport(false);
+        setShowShortcuts(false);
+        setShowOrderModal(false);
+        setSelectedUser(null);
       }
     };
 
-    window.addEventListener("keydown", handler);
+    window.addEventListener(
+      "keydown",
+      handler
+    );
 
-    return () => {
-      window.removeEventListener("keydown", handler);
-    };
+    return () =>
+      window.removeEventListener(
+        "keydown",
+        handler
+      );
   }, []);
 
-  // =====================================================
-  // TODO FUNCTIONS
-  // =====================================================
+  /* =========================
+     HELPERS
+  ========================= */
+
+  const addNotification = (
+    title,
+    text
+  ) => {
+    setNotifications((current) => [
+      {
+        id: Date.now(),
+        title,
+        text,
+        time: "Just now",
+        read: false
+      },
+      ...current
+    ]);
+  };
+
+  const changePage = (page) => {
+    setActivePage(page);
+    setMobileSidebar(false);
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  };
+
+  const formatMoney = (value) => {
+    const symbol =
+      currency === "USD"
+        ? "$"
+        : currency === "EUR"
+        ? "€"
+        : "₹";
+
+    return `${symbol}${Number(
+      value || 0
+    ).toLocaleString(
+      currency === "INR"
+        ? "en-IN"
+        : "en-US"
+    )}`;
+  };
+
+  const formatTimer = () => {
+    const minutes = Math.floor(
+      timerSeconds / 60
+    )
+      .toString()
+      .padStart(2, "0");
+
+    const seconds = (
+      timerSeconds % 60
+    )
+      .toString()
+      .padStart(2, "0");
+
+    return `${minutes}:${seconds}`;
+  };
+
+  const addTimerMinutes = (minutes) => {
+    setTimerSeconds(
+      (seconds) =>
+        seconds + minutes * 60
+    );
+  };
+
+  const resetTimer = () => {
+    setTimerRunning(false);
+    setTimerSeconds(
+      timerMode === "Short Break"
+        ? 5 * 60
+        : timerMode === "Long Break"
+        ? 15 * 60
+        : 25 * 60
+    );
+  };
+
+  const requestNotificationPermission =
+    async () => {
+      if (
+        "Notification" in window &&
+        Notification.permission ===
+          "default"
+      ) {
+        await Notification.requestPermission();
+      }
+    };
+
+  const changeTimerMode = (mode) => {
+    setTimerMode(mode);
+    setTimerRunning(false);
+
+    if (mode === "Pomodoro") {
+      setTimerSeconds(25 * 60);
+    }
+
+    if (mode === "Short Break") {
+      setTimerSeconds(5 * 60);
+    }
+
+    if (mode === "Long Break") {
+      setTimerSeconds(15 * 60);
+    }
+
+    if (mode === "Focus") {
+      setTimerSeconds(50 * 60);
+    }
+  };
+
+  /* =========================
+     TODO FUNCTIONS
+  ========================= */
 
   const addTodo = () => {
     if (!newTodo.trim()) return;
 
     const todo = {
       id: Date.now(),
-      title: newTodo,
+      title: newTodo.trim(),
       category: "General",
       priority: "Medium",
       completed: false
     };
 
-    setTodos((current) => [...current, todo]);
+    setTodos((current) => [
+      todo,
+      ...current
+    ]);
+
     setNewTodo("");
+
+    addNotification(
+      "Task added",
+      todo.title
+    );
   };
 
   const toggleTodo = (id) => {
@@ -364,7 +624,8 @@ function Dashboard({ user, onLogout }) {
         todo.id === id
           ? {
               ...todo,
-              completed: !todo.completed
+              completed:
+                !todo.completed
             }
           : todo
       )
@@ -373,107 +634,264 @@ function Dashboard({ user, onLogout }) {
 
   const deleteTodo = (id) => {
     setTodos((current) =>
-      current.filter((todo) => todo.id !== id)
+      current.filter(
+        (todo) => todo.id !== id
+      )
+    );
+
+    addNotification(
+      "Task deleted",
+      "The task was removed."
     );
   };
 
-  // =====================================================
-  // PROFILE
-  // =====================================================
+  /* =========================
+     PROFILE
+  ========================= */
 
   const updateProfile = () => {
-    setMessage("Profile updated successfully!");
+    setMessage(
+      "Profile updated successfully!"
+    );
+
+    addNotification(
+      "Profile updated",
+      "Your profile information was updated."
+    );
 
     setTimeout(() => {
       setMessage("");
     }, 2500);
   };
 
-  // =====================================================
-  // TIMER FUNCTIONS
-  // =====================================================
+  /* =========================
+     ORDERS
+  ========================= */
 
-  const formatTimer = () => {
-    const minutes = Math.floor(timerSeconds / 60)
-      .toString()
-      .padStart(2, "0");
+  const addOrder = (event) => {
+    event.preventDefault();
 
-    const seconds = (timerSeconds % 60)
-      .toString()
-      .padStart(2, "0");
+    if (
+      !newOrder.customer.trim() ||
+      !newOrder.email.trim() ||
+      !newOrder.amount
+    ) {
+      alert(
+        "Please fill customer name, email and amount."
+      );
+      return;
+    }
 
-    return `${minutes}:${seconds}`;
-  };
+    const order = {
+      id: `ORD-${Date.now()
+        .toString()
+        .slice(-6)}`,
+      customer:
+        newOrder.customer.trim(),
+      email:
+        newOrder.email.trim(),
+      date: new Date()
+        .toISOString()
+        .slice(0, 10),
+      amount: Number(
+        newOrder.amount
+      ),
+      status: newOrder.status
+    };
 
-  const setPreset = (mode) => {
-    setTimerMode(mode);
-    setTimerSeconds(timerPresets[mode]);
-    setTimerRunning(false);
-  };
+    setOrders((current) => [
+      order,
+      ...current
+    ]);
 
-  const resetTimer = () => {
-    setTimerRunning(false);
-    setTimerSeconds(timerPresets[timerMode]);
-  };
+    setNewOrder({
+      customer: "",
+      email: "",
+      amount: "",
+      status: "Pending"
+    });
 
-  const addMinutes = (minutes) => {
-    setTimerSeconds(
-      (current) => current + minutes * 60
+    setShowOrderModal(false);
+
+    addNotification(
+      "New order added",
+      `${order.customer} placed an order.`
     );
   };
 
-  // =====================================================
-  // REFRESH
-  // =====================================================
+  const deleteOrder = (id) => {
+    setOrders((current) =>
+      current.filter(
+        (order) => order.id !== id
+      )
+    );
 
-  const refreshActivity = () => {
-    setRefreshing(true);
+    setSelectedOrders((current) =>
+      current.filter(
+        (orderId) => orderId !== id
+      )
+    );
 
-    setTimeout(() => {
-      setLastRefresh(new Date());
-      setRefreshing(false);
-    }, 700);
+    addNotification(
+      "Order deleted",
+      `${id} was removed.`
+    );
   };
 
-  // =====================================================
-  // NOTES
-  // =====================================================
-
-  const saveNotes = () => {
-    localStorage.setItem("raf_notes", notes);
-    setMessage("Notes saved successfully!");
-
-    setTimeout(() => {
-      setMessage("");
-    }, 2000);
+  const updateOrderStatus = (
+    id,
+    status
+  ) => {
+    setOrders((current) =>
+      current.map((order) =>
+        order.id === id
+          ? { ...order, status }
+          : order
+      )
+    );
   };
 
-  // =====================================================
-  // ORDERS FILTER
-  // =====================================================
+  const toggleOrderSelection = (id) => {
+    setSelectedOrders((current) =>
+      current.includes(id)
+        ? current.filter(
+            (item) => item !== id
+          )
+        : [...current, id]
+    );
+  };
+
+  const toggleAllOrders = (
+    visibleOrders
+  ) => {
+    const ids = visibleOrders.map(
+      (order) => order.id
+    );
+
+    const allSelected = ids.every(
+      (id) =>
+        selectedOrders.includes(id)
+    );
+
+    if (allSelected) {
+      setSelectedOrders((current) =>
+        current.filter(
+          (id) => !ids.includes(id)
+        )
+      );
+    } else {
+      setSelectedOrders((current) => [
+        ...new Set([
+          ...current,
+          ...ids
+        ])
+      ]);
+    }
+  };
+
+  const deleteSelectedOrders = () => {
+    if (!selectedOrders.length) {
+      alert("Select at least one order.");
+      return;
+    }
+
+    setOrders((current) =>
+      current.filter(
+        (order) =>
+          !selectedOrders.includes(
+            order.id
+          )
+      )
+    );
+
+    addNotification(
+      "Orders deleted",
+      `${selectedOrders.length} orders removed.`
+    );
+
+    setSelectedOrders([]);
+  };
+
+  const markSelectedCompleted = () => {
+    if (!selectedOrders.length) {
+      alert("Select at least one order.");
+      return;
+    }
+
+    setOrders((current) =>
+      current.map((order) =>
+        selectedOrders.includes(
+          order.id
+        )
+          ? {
+              ...order,
+              status: "Completed"
+            }
+          : order
+      )
+    );
+
+    setSelectedOrders([]);
+
+    addNotification(
+      "Orders updated",
+      "Selected orders marked completed."
+    );
+  };
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
-      const search =
-        orderSearch.trim().toLowerCase();
-
       const matchesSearch =
-        !search ||
-        order.id.toLowerCase().includes(search) ||
-        order.customer.toLowerCase().includes(search) ||
-        order.email.toLowerCase().includes(search);
+        order.customer
+          .toLowerCase()
+          .includes(
+            orderSearch.toLowerCase()
+          ) ||
+        order.email
+          .toLowerCase()
+          .includes(
+            orderSearch.toLowerCase()
+          ) ||
+        order.id
+          .toLowerCase()
+          .includes(
+            orderSearch.toLowerCase()
+          );
 
       const matchesStatus =
         orderStatus === "All" ||
         order.status === orderStatus;
 
-      return matchesSearch && matchesStatus;
+      return (
+        matchesSearch &&
+        matchesStatus
+      );
     });
-  }, [orders, orderSearch, orderStatus]);
+  }, [
+    orders,
+    orderSearch,
+    orderStatus
+  ]);
 
-  // =====================================================
-  // CSV EXPORT
-  // =====================================================
+  const totalOrderPages = Math.max(
+    1,
+    Math.ceil(
+      filteredOrders.length /
+        rowsPerPage
+    )
+  );
+
+  const visibleOrders =
+    filteredOrders.slice(
+      (currentOrderPage - 1) *
+        rowsPerPage,
+      currentOrderPage *
+        rowsPerPage
+    );
+
+  /* =========================
+     EXPORT CSV
+  ========================= */
 
   const exportCSV = () => {
     const headers = [
@@ -481,20 +899,20 @@ function Dashboard({ user, onLogout }) {
       "Customer",
       "Email",
       "Date",
-      "Time",
       "Amount",
       "Status"
     ];
 
-    const rows = filteredOrders.map((order) => [
-      order.id,
-      order.customer,
-      order.email,
-      order.date,
-      order.time,
-      order.amount,
-      order.status
-    ]);
+    const rows = filteredOrders.map(
+      (order) => [
+        order.id,
+        order.customer,
+        order.email,
+        order.date,
+        order.amount,
+        order.status
+      ]
+    );
 
     const csv = [
       headers,
@@ -502,61 +920,313 @@ function Dashboard({ user, onLogout }) {
     ]
       .map((row) =>
         row
-          .map((value) =>
-            `"${String(value).replaceAll('"', '""')}"`
+          .map((cell) =>
+            `"${String(cell).replace(
+              /"/g,
+              '""'
+            )}"`
           )
           .join(",")
       )
       .join("\n");
 
-    const blob = new Blob([csv], {
-      type: "text/csv;charset=utf-8;"
-    });
+    const blob = new Blob(
+      [csv],
+      {
+        type: "text/csv;charset=utf-8;"
+      }
+    );
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const url =
+      URL.createObjectURL(blob);
+
+    const link =
+      document.createElement("a");
 
     link.href = url;
-    link.download = "raf-ai-orders.csv";
+    link.download =
+      "raf-ai-orders.csv";
 
     link.click();
 
     URL.revokeObjectURL(url);
+
+    addNotification(
+      "CSV exported",
+      "Order data exported successfully."
+    );
   };
 
-  // =====================================================
-  // CHAT
-  // =====================================================
+  /* =========================
+     USER MANAGEMENT
+  ========================= */
+
+  const fetchUsers = async () => {
+    if (!isOwner) return;
+
+    if (!user?.idToken) {
+      setUsers([]);
+      return;
+    }
+
+    try {
+      setUsersLoading(true);
+
+      const response = await fetch(
+        `${DATABASE_URL}/users.json?auth=${user.idToken}`
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "Could not load users."
+        );
+      }
+
+      const data =
+        await response.json();
+
+      const list = data
+        ? Object.entries(data).map(
+            ([uid, item]) => ({
+              uid,
+              ...item,
+              role:
+                item?.role ||
+                (item?.email
+                  ?.toLowerCase() ===
+                OWNER_EMAIL.toLowerCase()
+                  ? "owner"
+                  : "user")
+            })
+          )
+        : [];
+
+      setUsers(list);
+    } catch (error) {
+      console.error(
+        "Users Error:",
+        error
+      );
+
+      setUsers([]);
+
+      addNotification(
+        "Users could not load",
+        error.message
+      );
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (
+      activePage === "users" &&
+      isOwner
+    ) {
+      fetchUsers();
+    }
+  }, [
+    activePage,
+    isOwner
+  ]);
+
+  const filteredUsers =
+    users.filter((item) => {
+      const query =
+        userSearch.toLowerCase();
+
+      const matchesSearch =
+        item.name
+          ?.toLowerCase()
+          .includes(query) ||
+        item.email
+          ?.toLowerCase()
+          .includes(query) ||
+        item.uid
+          ?.toLowerCase()
+          .includes(query);
+
+      const matchesRole =
+        userRoleFilter === "All" ||
+        item.role ===
+          userRoleFilter.toLowerCase();
+
+      return (
+        matchesSearch &&
+        matchesRole
+      );
+    });
+
+  const userRoleLabel = (role) => {
+    if (role === "owner")
+      return "Owner";
+
+    if (role === "admin")
+      return "Admin";
+
+    return "User";
+  };
+
+  /* =========================
+     SEARCH
+  ========================= */
+
+  const globalSearchAction = () => {
+    const query =
+      search.trim().toLowerCase();
+
+    if (!query) return;
+
+    const pages = [
+      {
+        keywords: [
+          "dashboard",
+          "overview",
+          "home"
+        ],
+        page: "overview"
+      },
+      {
+        keywords: [
+          "task",
+          "todo"
+        ],
+        page: "tasks"
+      },
+      {
+        keywords: [
+          "profile",
+          "account"
+        ],
+        page: "profile"
+      },
+      {
+        keywords: [
+          "analytics",
+          "report",
+          "chart"
+        ],
+        page: "analytics"
+      },
+      {
+        keywords: [
+          "order",
+          "transaction",
+          "sales"
+        ],
+        page: "orders"
+      },
+      {
+        keywords: [
+          "clock",
+          "time",
+          "timezone"
+        ],
+        page: "clocks"
+      },
+      {
+        keywords: [
+          "setting",
+          "configuration"
+        ],
+        page: "settings"
+      }
+    ];
+
+    const found = pages.find(
+      (item) =>
+        item.keywords.some(
+          (keyword) =>
+            query.includes(keyword)
+        )
+    );
+
+    if (found) {
+      changePage(found.page);
+      return;
+    }
+
+    if (
+      isOwner &&
+      ["user", "users", "team"].some(
+        (keyword) =>
+          query.includes(keyword)
+      )
+    ) {
+      changePage("users");
+      return;
+    }
+
+    addNotification(
+      "Search",
+      `No dashboard page found for "${search}".`
+    );
+  };
+
+  /* =========================
+     NOTIFICATIONS
+  ========================= */
+
+  const markNotificationsRead =
+    () => {
+      setNotifications((current) =>
+        current.map(
+          (notification) => ({
+            ...notification,
+            read: true
+          })
+        )
+      );
+    };
+
+  const clearNotifications = () => {
+    setNotifications([]);
+  };
+
+  /* =========================
+     CHAT
+  ========================= */
 
   const sendChat = () => {
-    if (!chatInput.trim()) return;
+    if (!chatMessage.trim()) return;
 
     setChatMessages((current) => [
       ...current,
       {
         id: Date.now(),
-        from: "You",
-        text: chatInput
+        sender: profile.name,
+        text: chatMessage,
+        mine: true
       }
     ]);
 
-    setChatInput("");
+    setChatMessage("");
 
     setTimeout(() => {
       setChatMessages((current) => [
         ...current,
         {
-          id: Date.now() + 1,
-          from: "Support",
-          text: "Thanks! Our team will get back to you shortly."
+          id: Date.now(),
+          sender: "RAF Support",
+          text: "Thanks! Your message has been received.",
+          mine: false
         }
       ]);
-    }, 700);
+    }, 800);
   };
 
-  // =====================================================
-  // NAVIGATION
-  // =====================================================
+  /* =========================
+     FULLSCREEN
+  ========================= */
+
+  const toggleZenMode = () => {
+    setZenMode((current) => !current);
+  };
+
+  /* =========================
+     NAVIGATION
+  ========================= */
 
   const navigation = [
     {
@@ -570,25 +1240,34 @@ function Dashboard({ user, onLogout }) {
       label: "Tasks"
     },
     {
+      id: "profile",
+      icon: "♙",
+      label: "Profile"
+    },
+    {
       id: "analytics",
       icon: "▥",
       label: "Analytics"
     },
     {
       id: "orders",
-      icon: "▣",
+      icon: "🛒",
       label: "Orders"
     },
     {
       id: "clocks",
-      icon: "◷",
+      icon: "🌍",
       label: "World Clock"
     },
-    {
-      id: "profile",
-      icon: "♙",
-      label: "Profile"
-    },
+    ...(isOwner
+      ? [
+          {
+            id: "users",
+            icon: "👥",
+            label: "Users"
+          }
+        ]
+      : []),
     {
       id: "settings",
       icon: "⚙",
@@ -596,96 +1275,68 @@ function Dashboard({ user, onLogout }) {
     }
   ];
 
-  const changePage = (page) => {
-    setActivePage(page);
-    setSidebarOpen(false);
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth"
-    });
-  };
-
-  const completedTodos = todos.filter(
-    (todo) => todo.completed
-  ).length;
-
-  const pendingTodos = todos.filter(
-    (todo) => !todo.completed
-  ).length;
-
-  const productivityScore =
-    todos.length > 0
-      ? Math.round(
-          (completedTodos / todos.length) * 100
-        )
-      : 0;
-
-  const formatCurrency = (amount) => {
-    if (currency === "USD") {
-      return `$${(amount / 83).toLocaleString(
-        "en-US",
-        {
-          maximumFractionDigits: 0
-        }
-      )}`;
-    }
-
-    if (currency === "EUR") {
-      return `€${(amount / 90).toLocaleString(
-        "de-DE",
-        {
-          maximumFractionDigits: 0
-        }
-      )}`;
-    }
-
-    return `₹${amount.toLocaleString("en-IN")}`;
-  };
-
-  const pageTitle = {
-    overview: "Dashboard",
-    tasks: "My Tasks",
-    analytics: "Analytics",
-    orders: "Orders & Transactions",
-    clocks: "World Clock",
-    profile: "My Profile",
-    settings: "Settings"
-  };
-
   return (
     <div
-      className={
-        darkMode
-          ? "dashboard app-dark"
-          : "dashboard"
-      }
+      className={`dashboard-shell ${
+        darkMode ? "dark-mode" : ""
+      } ${zenMode ? "zen-mode" : ""}`}
     >
-      {/* MOBILE OVERLAY */}
+      {/* =========================
+          MOBILE OVERLAY
+      ========================= */}
 
-      {sidebarOpen && (
+      {mobileSidebar && (
         <div
-          className="sidebar-overlay"
-          onClick={() => setSidebarOpen(false)}
+          className="mobile-overlay"
+          onClick={() =>
+            setMobileSidebar(false)
+          }
         />
       )}
 
-      {/* =================================================
+      {/* =========================
           SIDEBAR
-      ================================================= */}
+      ========================= */}
 
       <aside
-        className={
-          sidebarOpen
-            ? "dashboard-sidebar mobile-open"
-            : "dashboard-sidebar"
-        }
+        className={`dashboard-sidebar ${
+          mobileSidebar
+            ? "mobile-open"
+            : ""
+        }`}
       >
-        <div className="brand">
-          <div className="brand-logo">R</div>
+        <div className="sidebar-brand">
+          <div className="brand-logo">
+            R
+          </div>
 
           <div>
             <strong>RAF AI</strong>
-            <span>Smart Workspace</span>
+            <span>
+              {isOwner
+                ? "Owner Console"
+                : "Personal Dashboard"}
+            </span>
+          </div>
+        </div>
+
+        <div className="sidebar-user-card">
+          <div className="sidebar-avatar">
+            {profile.name
+              ?.charAt(0)
+              .toUpperCase() || "R"}
+          </div>
+
+          <div>
+            <strong>
+              {profile.name}
+            </strong>
+
+            <span>
+              {userRoleLabel(
+                profile.role
+              )}
+            </span>
           </div>
         </div>
 
@@ -710,35 +1361,25 @@ function Dashboard({ user, onLogout }) {
                 {item.icon}
               </span>
 
-              <span>{item.label}</span>
+              <span>
+                {item.label}
+              </span>
+
+              {item.id === "users" &&
+                isOwner && (
+                  <small className="owner-dot">
+                    OWNER
+                  </small>
+                )}
             </button>
           ))}
         </nav>
 
-        <div className="sidebar-mini-card">
-          <span>Storage</span>
-
-          <strong>
-            45 GB / 100 GB
-          </strong>
-
-          <div className="storage-progress">
-            <div />
-          </div>
-
-          <small>
-            55 GB available
-          </small>
-        </div>
-
         <div className="sidebar-bottom">
-          <button
-            className="help-button"
-            onClick={() => setShowChat(true)}
-          >
-            <span>?</span>
-            Help Center
-          </button>
+          <div className="sidebar-status">
+            <span></span>
+            System operational
+          </div>
 
           <button
             className="logout-button"
@@ -750,27 +1391,21 @@ function Dashboard({ user, onLogout }) {
         </div>
       </aside>
 
-      {/* =================================================
+      {/* =========================
           MAIN
-      ================================================= */}
+      ========================= */}
 
-      <main
-        className={
-          zenMode
-            ? "dashboard-main zen-mode"
-            : "dashboard-main"
-        }
-      >
-        {/* =================================================
-            TOP BAR
-        ================================================= */}
+      <main className="dashboard-main">
+        {/* =========================
+            TOPBAR
+        ========================= */}
 
         <header className="dashboard-topbar">
           <div className="topbar-left">
             <button
-              className="mobile-menu"
+              className="mobile-menu-button"
               onClick={() =>
-                setSidebarOpen(true)
+                setMobileSidebar(true)
               }
             >
               ☰
@@ -780,11 +1415,43 @@ function Dashboard({ user, onLogout }) {
               <div className="breadcrumb">
                 Home
                 <span>›</span>
-                {pageTitle[activePage]}
+                {navigation.find(
+                  (item) =>
+                    item.id === activePage
+                )?.label ||
+                  "Dashboard"}
               </div>
 
               <h1>
-                {pageTitle[activePage]}
+                {activePage ===
+                  "overview" &&
+                  "Dashboard"}
+
+                {activePage === "tasks" &&
+                  "My Tasks"}
+
+                {activePage ===
+                  "profile" &&
+                  "My Profile"}
+
+                {activePage ===
+                  "analytics" &&
+                  "Analytics"}
+
+                {activePage ===
+                  "orders" &&
+                  "Orders & Transactions"}
+
+                {activePage ===
+                  "clocks" &&
+                  "World Clock"}
+
+                {activePage === "users" &&
+                  "User Management"}
+
+                {activePage ===
+                  "settings" &&
+                  "Settings"}
               </h1>
 
               <p>
@@ -794,241 +1461,418 @@ function Dashboard({ user, onLogout }) {
             </div>
           </div>
 
-          <div className="topbar-controls">
-            {/* SEARCH */}
-
+          <div className="topbar-center">
             <div className="search-wrapper">
               <span>⌕</span>
 
               <input
                 className="global-search"
                 placeholder="Search pages, users, data..."
-                value={globalSearch}
-                onChange={(e) =>
-                  setGlobalSearch(
-                    e.target.value
+                value={search}
+                onChange={(event) =>
+                  setSearch(
+                    event.target.value
                   )
                 }
+                onKeyDown={(event) => {
+                  if (
+                    event.key ===
+                    "Enter"
+                  ) {
+                    globalSearchAction();
+                  }
+                }}
               />
 
               <kbd>Ctrl K</kbd>
             </div>
+          </div>
 
-            {/* QUICK ACTION */}
+          <div className="topbar-right">
+            <button
+              className="quick-action-button"
+              onClick={() =>
+                setShowQuickAction(
+                  (current) => !current
+                )
+              }
+            >
+              + Quick Action
+            </button>
 
-            <div className="top-action-wrap">
-              <button
-                className="quick-action"
-                onClick={() =>
-                  setShowQuickActions(
-                    !showQuickActions
+            <div className="topbar-control">
+              <select
+                value={language}
+                onChange={(event) =>
+                  setLanguage(
+                    event.target.value
                   )
                 }
+                title="Region"
               >
-                + New
-              </button>
-
-              {showQuickActions && (
-                <div className="quick-menu">
-                  <button
-                    onClick={() => {
-                      changePage("tasks");
-                      setShowQuickActions(false);
-                    }}
-                  >
-                    ✓ Add Task
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      changePage("orders");
-                      setShowQuickActions(false);
-                    }}
-                  >
-                    + Add Order
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      changePage("profile");
-                      setShowQuickActions(false);
-                    }}
-                  >
-                    ♙ Edit Profile
-                  </button>
-                </div>
-              )}
+                <option value="IN">
+                  🇮🇳 IN
+                </option>
+                <option value="UK">
+                  🇬🇧 UK
+                </option>
+                <option value="AE">
+                  🇦🇪 AE
+                </option>
+                <option value="US">
+                  🇺🇸 US
+                </option>
+              </select>
             </div>
 
-            {/* NOTIFICATIONS */}
+            <button
+              className="theme-toggle"
+              onClick={() =>
+                setDarkMode(
+                  (current) => !current
+                )
+              }
+              title="Toggle theme"
+            >
+              {darkMode ? "☀️" : "🌙"}
+            </button>
 
             <div className="notification-wrap">
               <button
                 className="icon-button"
-                onClick={() => {
+                onClick={() =>
                   setShowNotifications(
-                    !showNotifications
-                  );
-                  setNotifications(0);
-                }}
+                    (current) =>
+                      !current
+                  )
+                }
               >
                 🔔
-                {notifications > 0 && (
-                  <span className="notification-dot">
-                    {notifications}
+
+                {unreadCount > 0 && (
+                  <span className="notification-count">
+                    {unreadCount}
                   </span>
                 )}
               </button>
 
               {showNotifications && (
-                <div className="notification-panel">
-                  <div className="dropdown-heading">
-                    <strong>
-                      Notifications
-                    </strong>
-
-                    <span>
-                      Today
-                    </span>
-                  </div>
-
-                  <div className="notification-item">
-                    <span>✓</span>
+                <div className="dropdown-panel notification-panel">
+                  <div className="dropdown-header">
                     <div>
                       <strong>
-                        Profile updated
+                        Notifications
                       </strong>
-                      <small>
-                        10 minutes ago
-                      </small>
+                      <span>
+                        {unreadCount} unread
+                      </span>
                     </div>
+
+                    <button
+                      onClick={
+                        markNotificationsRead
+                      }
+                    >
+                      Mark read
+                    </button>
                   </div>
 
-                  <div className="notification-item">
-                    <span>⚡</span>
-                    <div>
-                      <strong>
-                        New task assigned
-                      </strong>
-                      <small>
-                        35 minutes ago
-                      </small>
-                    </div>
+                  <div className="notification-list">
+                    {notifications.length ===
+                    0 ? (
+                      <div className="empty-state">
+                        No notifications
+                      </div>
+                    ) : (
+                      notifications.map(
+                        (
+                          notification
+                        ) => (
+                          <div
+                            className={`notification-item ${
+                              notification.read
+                                ? ""
+                                : "unread"
+                            }`}
+                            key={
+                              notification.id
+                            }
+                          >
+                            <div className="notification-icon">
+                              🔔
+                            </div>
+
+                            <div>
+                              <strong>
+                                {
+                                  notification.title
+                                }
+                              </strong>
+
+                              <p>
+                                {
+                                  notification.text
+                                }
+                              </p>
+
+                              <small>
+                                {
+                                  notification.time
+                                }
+                              </small>
+                            </div>
+                          </div>
+                        )
+                      )
+                    )}
                   </div>
 
-                  <div className="notification-item">
-                    <span>☁</span>
-                    <div>
-                      <strong>
-                        Database synced
-                      </strong>
-                      <small>
-                        1 hour ago
-                      </small>
-                    </div>
-                  </div>
+                  <button
+                    className="clear-notifications"
+                    onClick={
+                      clearNotifications
+                    }
+                  >
+                    Clear all
+                  </button>
                 </div>
               )}
             </div>
 
-            {/* DARK MODE */}
+            <div className="profile-wrap">
+              <button
+                className="user-mini"
+                onClick={() =>
+                  setShowProfileMenu(
+                    (current) =>
+                      !current
+                  )
+                }
+              >
+                <div className="avatar">
+                  {profile.name
+                    ?.charAt(0)
+                    .toUpperCase() ||
+                    "R"}
+                </div>
 
-            <button
-              className="theme-toggle"
-              onClick={() =>
-                setDarkMode(!darkMode)
-              }
-              title="Toggle theme"
-            >
-              {darkMode ? "☀" : "☾"}
-            </button>
+                <div className="user-mini-info">
+                  <strong>
+                    {profile.name}
+                  </strong>
 
-            {/* LANGUAGE */}
+                  <span>
+                    {userRoleLabel(
+                      profile.role
+                    )}
+                  </span>
+                </div>
 
-            <select
-              className="region-select"
-              value={language}
-              onChange={(e) =>
-                setLanguage(e.target.value)
-              }
-            >
-              <option>English</option>
-              <option>Hindi</option>
-              <option>Urdu</option>
-              <option>Arabic</option>
-            </select>
+                <span>⌄</span>
+              </button>
 
-            {/* USER */}
+              {showProfileMenu && (
+                <div className="dropdown-panel profile-dropdown">
+                  <button
+                    onClick={() =>
+                      changePage(
+                        "profile"
+                      )
+                    }
+                  >
+                    👤 My Profile
+                  </button>
 
-            <button
-              className="user-mini"
-              onClick={() =>
-                changePage("profile")
-              }
-            >
-              <div className="avatar">
-                {profile.name
-                  ? profile.name
-                      .charAt(0)
-                      .toUpperCase()
-                  : "R"}
-              </div>
+                  {isOwner && (
+                    <button
+                      onClick={() =>
+                        changePage(
+                          "users"
+                        )
+                      }
+                    >
+                      👥 Manage Users
+                    </button>
+                  )}
 
-              <div className="user-mini-text">
-                <strong>
-                  {profile.name}
-                </strong>
+                  <button
+                    onClick={() =>
+                      changePage(
+                        "settings"
+                      )
+                    }
+                  >
+                    ⚙ Settings
+                  </button>
 
-                <span>
-                  {profile.email}
-                </span>
-              </div>
-
-              <span>⌄</span>
-            </button>
+                  <button
+                    className="danger-text"
+                    onClick={onLogout}
+                  >
+                    ↪ Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
-        {/* =================================================
-            ANNOUNCEMENT
-        ================================================= */}
+        {/* =========================
+            QUICK ACTION MENU
+        ========================= */}
 
-        <div className="announcement">
+        {showQuickAction && (
+          <div className="quick-action-menu">
+            <button
+              onClick={() => {
+                setShowQuickAction(false);
+                setShowOrderModal(true);
+              }}
+            >
+              🛒 Add New Order
+            </button>
+
+            {isOwner && (
+              <button
+                onClick={() => {
+                  setShowQuickAction(false);
+                  changePage("users");
+                }}
+              >
+                👥 View Users
+              </button>
+            )}
+
+            <button
+              onClick={() => {
+                setShowQuickAction(false);
+                changePage("tasks");
+              }}
+            >
+              ✓ Add Task
+            </button>
+
+            <button
+              onClick={() => {
+                setShowQuickAction(false);
+                changePage("analytics");
+              }}
+            >
+              📊 Analytics
+            </button>
+          </div>
+        )}
+
+        {/* =========================
+            ANNOUNCEMENT
+        ========================= */}
+
+        <div className="announcement-banner">
           <div>
             <span className="announcement-icon">
               📢
             </span>
 
-            <strong>
-              RAF AI v2.4.0
-            </strong>
+            <div>
+              <strong>
+                RAF AI System Announcement
+              </strong>
 
-            <span>
-              New analytics, world clocks,
-              productivity tools and improved
-              dashboard experience are available.
-            </span>
+              <p>
+                All services are operational.
+                Dashboard v2.4.0 is active.
+              </p>
+            </div>
           </div>
 
           <button
             onClick={() =>
-              setShowShortcuts(true)
+              addNotification(
+                "Announcement",
+                "System announcement saved."
+              )
             }
           >
-            What's New
+            Got it
           </button>
         </div>
 
-        {/* =================================================
+        {/* =========================
             OVERVIEW
-        ================================================= */}
+        ========================= */}
 
         {activePage === "overview" && (
           <section className="dashboard-content">
+            <div className="hero-card">
+              <div>
+                <span className="eyebrow">
+                  ✨ PERSONAL WORKSPACE
+                </span>
+
+                <h2>
+                  Good day,{" "}
+                  <span>
+                    {profile.name}
+                  </span>
+                </h2>
+
+                <p>
+                  Manage your productivity,
+                  orders, account and RAF AI
+                  workspace from one place.
+                </p>
+
+                <div className="hero-actions">
+                  <button
+                    onClick={() =>
+                      setShowOrderModal(
+                        true
+                      )
+                    }
+                  >
+                    + Add Order
+                  </button>
+
+                  <button
+                    className="secondary-action"
+                    onClick={() =>
+                      changePage(
+                        "analytics"
+                      )
+                    }
+                  >
+                    View Analytics →
+                  </button>
+                </div>
+              </div>
+
+              <div className="hero-score">
+                <span>
+                  Productivity
+                </span>
+
+                <strong>
+                  {productivityScore}%
+                </strong>
+
+                <div className="score-ring">
+                  <div
+                    style={{
+                      "--score": `${productivityScore}%`
+                    }}
+                  >
+                    <span>
+                      {productivityScore}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* KPI */}
 
-            <div className="stats-grid four">
-              <div className="stat-card premium-card">
+            <div className="stats-grid">
+              <div className="stat-card">
                 <div className="stat-icon purple">
                   ₹
                 </div>
@@ -1039,18 +1883,12 @@ function Dashboard({ user, onLogout }) {
                   </span>
 
                   <strong>
-                    {formatCurrency(
-                      2849500
-                    )}
+                    ₹4,82,650
                   </strong>
 
                   <small className="positive">
-                    ↑ 18.4% this month
+                    +18.4% this month
                   </small>
-                </div>
-
-                <div className="sparkline">
-                  ▁▂▃▂▄▅▆▇
                 </div>
               </div>
 
@@ -1061,22 +1899,25 @@ function Dashboard({ user, onLogout }) {
 
                 <div>
                   <span>
-                    Active Users
+                    Total Users
                   </span>
 
                   <strong>
-                    12,849
+                    {isOwner
+                      ? users.length ||
+                        "1,284"
+                      : "1,284"}
                   </strong>
 
                   <small className="positive">
-                    ↑ 12.5% this month
+                    +12.5% this month
                   </small>
                 </div>
               </div>
 
               <div className="stat-card">
                 <div className="stat-icon green">
-                  ◉
+                  🛒
                 </div>
 
                 <div>
@@ -1085,11 +1926,11 @@ function Dashboard({ user, onLogout }) {
                   </span>
 
                   <strong>
-                    8,492
+                    {orders.length}
                   </strong>
 
                   <small className="positive">
-                    ↑ 9.8% this week
+                    +8.2% this week
                   </small>
                 </div>
               </div>
@@ -1108,456 +1949,78 @@ function Dashboard({ user, onLogout }) {
                     99.9%
                   </strong>
 
-                  <small className="positive">
-                    Stable
+                  <small>
+                    All systems normal
                   </small>
                 </div>
               </div>
             </div>
 
-            {/* MAIN ANALYTICS */}
+            {/* DASHBOARD GRID */}
 
-            <div className="analytics-layout">
-              <div className="dashboard-panel revenue-panel">
-                <div className="panel-header">
-                  <div>
-                    <span className="eyebrow">
-                      PERFORMANCE
-                    </span>
-
-                    <h2>
-                      Revenue Growth
-                    </h2>
-
-                    <p>
-                      Monthly revenue overview
-                    </p>
-                  </div>
-
-                  <div className="chart-switch">
-                    <button className="active">
-                      Monthly
-                    </button>
-
-                    <button>
-                      Weekly
-                    </button>
-                  </div>
-                </div>
-
-                <div className="revenue-value">
-                  {formatCurrency(
-                    2849500
-                  )}
-
-                  <span>
-                    +18.4%
-                  </span>
-                </div>
-
-                <div className="line-chart">
-                  <div className="chart-grid-lines">
-                    <i />
-                    <i />
-                    <i />
-                    <i />
-                  </div>
-
-                  <svg
-                    viewBox="0 0 800 250"
-                    preserveAspectRatio="none"
-                  >
-                    <defs>
-                      <linearGradient
-                        id="rafGradient"
-                        x1="0"
-                        x2="0"
-                        y1="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="0%"
-                          stopOpacity="0.35"
-                        />
-
-                        <stop
-                          offset="100%"
-                          stopOpacity="0"
-                        />
-                      </linearGradient>
-                    </defs>
-
-                    <path
-                      className="chart-area"
-                      d="M0 205 C70 180, 90 195, 150 160 S250 170, 300 125 S390 145, 440 105 S530 125, 590 75 S680 90, 800 35 L800 250 L0 250 Z"
-                    />
-
-                    <path
-                      className="chart-line"
-                      d="M0 205 C70 180, 90 195, 150 160 S250 170, 300 125 S390 145, 440 105 S530 125, 590 75 S680 90, 800 35"
-                    />
-                  </svg>
-
-                  <div className="chart-labels">
-                    <span>Jan</span>
-                    <span>Feb</span>
-                    <span>Mar</span>
-                    <span>Apr</span>
-                    <span>May</span>
-                    <span>Jun</span>
-                    <span>Jul</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* CATEGORY */}
-
-              <div className="dashboard-panel">
-                <div className="panel-header">
-                  <div>
-                    <span className="eyebrow">
-                      SALES
-                    </span>
-
-                    <h2>
-                      Category Breakdown
-                    </h2>
-                  </div>
-                </div>
-
-                <div className="donut-wrap">
-                  <div className="donut">
-                    <div>
-                      <strong>
-                        68%
-                      </strong>
-
-                      <span>
-                        Overall
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="legend">
-                    <div>
-                      <i className="dot purple-dot" />
-                      Development
-                      <strong>
-                        42%
-                      </strong>
-                    </div>
-
-                    <div>
-                      <i className="dot blue-dot" />
-                      Design
-                      <strong>
-                        28%
-                      </strong>
-                    </div>
-
-                    <div>
-                      <i className="dot green-dot" />
-                      Services
-                      <strong>
-                        18%
-                      </strong>
-                    </div>
-
-                    <div>
-                      <i className="dot orange-dot" />
-                      Other
-                      <strong>
-                        12%
-                      </strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* TRAFFIC / FUNNEL / VISITORS */}
-
-            <div className="three-grid">
-              <div className="dashboard-panel">
-                <div className="panel-header">
-                  <div>
-                    <h2>
-                      User Traffic
-                    </h2>
-                    <p>
-                      Visitors by source
-                    </p>
-                  </div>
-                </div>
-
-                <div className="traffic-list">
-                  <div>
-                    <span>
-                      Organic
-                    </span>
-
-                    <div className="bar">
-                      <i
-                        style={{
-                          width: "82%"
-                        }}
-                      />
-                    </div>
-
-                    <strong>
-                      82%
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>
-                      Direct
-                    </span>
-
-                    <div className="bar">
-                      <i
-                        style={{
-                          width: "64%"
-                        }}
-                      />
-                    </div>
-
-                    <strong>
-                      64%
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>
-                      Referral
-                    </span>
-
-                    <div className="bar">
-                      <i
-                        style={{
-                          width: "48%"
-                        }}
-                      />
-                    </div>
-
-                    <strong>
-                      48%
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>
-                      Social
-                    </span>
-
-                    <div className="bar">
-                      <i
-                        style={{
-                          width: "36%"
-                        }}
-                      />
-                    </div>
-
-                    <strong>
-                      36%
-                    </strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className="dashboard-panel">
-                <div className="panel-header">
-                  <div>
-                    <h2>
-                      Conversion Funnel
-                    </h2>
-
-                    <p>
-                      Customer journey
-                    </p>
-                  </div>
-                </div>
-
-                <div className="funnel">
-                  <div
-                    style={{
-                      width: "100%"
-                    }}
-                  >
-                    Visitors
-                    <b>
-                      12,849
-                    </b>
-                  </div>
-
-                  <div
-                    style={{
-                      width: "82%"
-                    }}
-                  >
-                    Viewed
-                    <b>
-                      10,452
-                    </b>
-                  </div>
-
-                  <div
-                    style={{
-                      width: "63%"
-                    }}
-                  >
-                    Added
-                    <b>
-                      8,090
-                    </b>
-                  </div>
-
-                  <div
-                    style={{
-                      width: "42%"
-                    }}
-                  >
-                    Converted
-                    <b>
-                      5,394
-                    </b>
-                  </div>
-                </div>
-              </div>
-
-              <div className="dashboard-panel visitor-panel">
-                <div className="panel-header">
-                  <div>
-                    <h2>
-                      Live Visitors
-                    </h2>
-
-                    <p>
-                      Real-time traffic
-                    </p>
-                  </div>
-
-                  <span className="live-badge">
-                    LIVE
-                  </span>
-                </div>
-
-                <div className="visitor-number">
-                  1,284
-                </div>
-
-                <div className="visitor-pulse">
-                  <span />
-                </div>
-
-                <small>
-                  Visitors currently online
-                </small>
-              </div>
-            </div>
-
-            {/* PRODUCTIVITY */}
-
-            <div className="productivity-layout">
+            <div className="dashboard-grid">
               {/* TIMER */}
 
               <div className="dashboard-panel timer-panel">
                 <div className="panel-header">
                   <div>
-                    <span className="eyebrow">
-                      PRODUCTIVITY
-                    </span>
-
                     <h2>
                       Focus Timer
                     </h2>
 
                     <p>
-                      Pomodoro / countdown timer
+                      Pomodoro productivity
+                      session
                     </p>
                   </div>
 
-                  <span className="timer-status">
-                    {timerRunning
-                      ? "Running"
-                      : "Paused"}
+                  <span className="live-pill">
+                    ● LIVE
                   </span>
                 </div>
 
-                <div className="timer-circle">
-                  <div>
-                    <strong>
-                      {formatTimer()}
-                    </strong>
-
-                    <span>
-                      {timerMode ===
-                        "pomodoro"
-                        ? "Focus"
-                        : timerMode ===
-                          "short"
-                        ? "Short Break"
-                        : "Long Break"}
-                    </span>
-                  </div>
+                <div className="timer-tabs">
+                  {[
+                    "Pomodoro",
+                    "Short Break",
+                    "Long Break",
+                    "Focus"
+                  ].map((mode) => (
+                    <button
+                      key={mode}
+                      className={
+                        timerMode === mode
+                          ? "active"
+                          : ""
+                      }
+                      onClick={() =>
+                        changeTimerMode(
+                          mode
+                        )
+                      }
+                    >
+                      {mode}
+                    </button>
+                  ))}
                 </div>
 
-                <div className="timer-presets">
-                  <button
-                    className={
-                      timerMode ===
-                      "pomodoro"
-                        ? "active"
-                        : ""
-                    }
-                    onClick={() =>
-                      setPreset(
-                        "pomodoro"
-                      )
-                    }
-                  >
-                    25m
-                  </button>
-
-                  <button
-                    className={
-                      timerMode ===
-                      "short"
-                        ? "active"
-                        : ""
-                    }
-                    onClick={() =>
-                      setPreset("short")
-                    }
-                  >
-                    5m
-                  </button>
-
-                  <button
-                    className={
-                      timerMode === "long"
-                        ? "active"
-                        : ""
-                    }
-                    onClick={() =>
-                      setPreset("long")
-                    }
-                  >
-                    15m
-                  </button>
+                <div className="timer-display">
+                  {formatTimer()}
                 </div>
 
                 <div className="timer-actions">
                   <button
-                    className="timer-primary"
-                    onClick={() =>
+                    className="timer-main-button"
+                    onClick={() => {
+                      requestNotificationPermission();
                       setTimerRunning(
-                        !timerRunning
-                      )
-                    }
+                        (current) =>
+                          !current
+                      );
+                    }}
                   >
                     {timerRunning
-                      ? "❚❚ Pause"
+                      ? "Ⅱ Pause"
                       : "▶ Start"}
                   </button>
 
@@ -1566,10 +2029,12 @@ function Dashboard({ user, onLogout }) {
                   >
                     Reset
                   </button>
+                </div>
 
+                <div className="timer-add-buttons">
                   <button
                     onClick={() =>
-                      addMinutes(5)
+                      addTimerMinutes(5)
                     }
                   >
                     +5 min
@@ -1577,7 +2042,7 @@ function Dashboard({ user, onLogout }) {
 
                   <button
                     onClick={() =>
-                      addMinutes(10)
+                      addTimerMinutes(10)
                     }
                   >
                     +10 min
@@ -1585,406 +2050,72 @@ function Dashboard({ user, onLogout }) {
                 </div>
               </div>
 
-              {/* NOTES */}
-
-              <div className="dashboard-panel notes-panel">
-                <div className="panel-header">
-                  <div>
-                    <span className="eyebrow">
-                      SCRATCHPAD
-                    </span>
-
-                    <h2>
-                      Quick Notes
-                    </h2>
-
-                    <p>
-                      Save your important ideas
-                    </p>
-                  </div>
-
-                  <span className="notes-icon">
-                    📝
-                  </span>
-                </div>
-
-                <textarea
-                  value={notes}
-                  onChange={(e) =>
-                    setNotes(
-                      e.target.value
-                    )
-                  }
-                  placeholder="Write your notes here..."
-                />
-
-                <button
-                  className="save-button"
-                  onClick={saveNotes}
-                >
-                  Save Notes
-                </button>
-              </div>
-
-              {/* TODAY */}
-
-              <div className="dashboard-panel today-panel">
-                <div className="panel-header">
-                  <div>
-                    <span className="eyebrow">
-                      TODAY
-                    </span>
-
-                    <h2>
-                      Productivity
-                    </h2>
-                  </div>
-                </div>
-
-                <div className="score-ring">
-                  <strong>
-                    {productivityScore}%
-                  </strong>
-
-                  <span>
-                    Score
-                  </span>
-                </div>
-
-                <div className="today-stats">
-                  <div>
-                    <strong>
-                      {completedTodos}
-                    </strong>
-
-                    <span>
-                      Completed
-                    </span>
-                  </div>
-
-                  <div>
-                    <strong>
-                      {pendingTodos}
-                    </strong>
-
-                    <span>
-                      Pending
-                    </span>
-                  </div>
-
-                  <div>
-                    <strong>
-                      7 🔥
-                    </strong>
-
-                    <span>
-                      Streak
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* TODO + ACTIVITY */}
-
-            <div className="dashboard-grid">
-              <div className="dashboard-panel todo-panel">
-                <div className="panel-header">
-                  <div>
-                    <h2>
-                      Quick Tasks
-                    </h2>
-
-                    <p>
-                      Manage your daily tasks
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={() =>
-                      changePage("tasks")
-                    }
-                  >
-                    View All
-                  </button>
-                </div>
-
-                <div className="todo-input">
-                  <input
-                    type="text"
-                    placeholder="Add a new task..."
-                    value={newTodo}
-                    onChange={(e) =>
-                      setNewTodo(
-                        e.target.value
-                      )
-                    }
-                    onKeyDown={(e) => {
-                      if (
-                        e.key === "Enter"
-                      ) {
-                        addTodo();
-                      }
-                    }}
-                  />
-
-                  <button
-                    onClick={addTodo}
-                  >
-                    +
-                  </button>
-                </div>
-
-                <div className="todo-list">
-                  {todos
-                    .slice(0, 5)
-                    .map((todo) => (
-                      <div
-                        className={
-                          todo.completed
-                            ? "todo-item completed"
-                            : "todo-item"
-                        }
-                        key={todo.id}
-                      >
-                        <button
-                          className="check-button"
-                          onClick={() =>
-                            toggleTodo(
-                              todo.id
-                            )
-                          }
-                        >
-                          {todo.completed
-                            ? "✓"
-                            : ""}
-                        </button>
-
-                        <div className="todo-info">
-                          <strong>
-                            {todo.title}
-                          </strong>
-
-                          <span>
-                            {todo.category}
-                          </span>
-                        </div>
-
-                        <span
-                          className={`priority ${todo.priority.toLowerCase()}`}
-                        >
-                          {todo.priority}
-                        </span>
-
-                        <button
-                          className="delete-todo"
-                          onClick={() =>
-                            deleteTodo(
-                              todo.id
-                            )
-                          }
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                </div>
-              </div>
+              {/* WEEKLY PERFORMANCE */}
 
               <div className="dashboard-panel">
                 <div className="panel-header">
                   <div>
                     <h2>
-                      Recent Activity
+                      Weekly Performance
                     </h2>
 
                     <p>
-                      Latest account activity
+                      Productivity activity
                     </p>
                   </div>
 
-                  <button
-                    className={
-                      refreshing
-                        ? "refreshing"
-                        : ""
-                    }
-                    onClick={
-                      refreshActivity
+                  <select
+                    value={weeklyMode}
+                    onChange={(event) =>
+                      setWeeklyMode(
+                        event.target.value
+                      )
                     }
                   >
-                    ↻ Refresh
-                  </button>
+                    <option>
+                      Weekly
+                    </option>
+                    <option>
+                      Monthly
+                    </option>
+                  </select>
                 </div>
 
-                <div className="activity-list">
-                  <div className="activity">
-                    <div className="activity-icon">
-                      ✓
-                    </div>
+                <div className="performance-chart">
+                  {[35, 55, 48, 75, 62, 88, 72].map(
+                    (height, index) => (
+                      <div
+                        className="chart-column"
+                        key={index}
+                      >
+                        <div
+                          className="chart-bar"
+                          style={{
+                            height: `${height}%`
+                          }}
+                        ></div>
 
-                    <div>
-                      <strong>
-                        Profile updated
-                      </strong>
-
-                      <span>
-                        Your profile was updated
-                      </span>
-
-                      <small>
-                        10 minutes ago
-                      </small>
-                    </div>
-                  </div>
-
-                  <div className="activity">
-                    <div className="activity-icon">
-                      🔐
-                    </div>
-
-                    <div>
-                      <strong>
-                        Successful login
-                      </strong>
-
-                      <span>
-                        New login from Chrome
-                      </span>
-
-                      <small>
-                        35 minutes ago
-                      </small>
-                    </div>
-                  </div>
-
-                  <div className="activity">
-                    <div className="activity-icon">
-                      ☁
-                    </div>
-
-                    <div>
-                      <strong>
-                        Database synced
-                      </strong>
-
-                      <span>
-                        Firebase data synchronized
-                      </span>
-
-                      <small>
-                        1 hour ago
-                      </small>
-                    </div>
-                  </div>
-
-                  <div className="activity">
-                    <div className="activity-icon">
-                      ★
-                    </div>
-
-                    <div>
-                      <strong>
-                        New project created
-                      </strong>
-
-                      <span>
-                        RAF AI Dashboard
-                      </span>
-
-                      <small>
-                        2 hours ago
-                      </small>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="refresh-time">
-                  Last refreshed:{" "}
-                  {lastRefresh.toLocaleTimeString(
-                    "en-IN"
+                        <span>
+                          {
+                            [
+                              "M",
+                              "T",
+                              "W",
+                              "T",
+                              "F",
+                              "S",
+                              "S"
+                            ][index]
+                          }
+                        </span>
+                      </div>
+                    )
                   )}
                 </div>
               </div>
             </div>
 
-            {/* SYSTEM / FINANCE */}
-
-            <div className="widget-grid">
-              <div className="mini-widget">
-                <span>
-                  System Health
-                </span>
-
-                <strong className="online">
-                  ● All Systems Operational
-                </strong>
-
-                <small>
-                  Database OK · API 99.9%
-                </small>
-              </div>
-
-              <div className="mini-widget">
-                <span>
-                  Revenue Target
-                </span>
-
-                <strong>
-                  82%
-                </strong>
-
-                <div className="progress">
-                  <div
-                    style={{
-                      width: "82%"
-                    }}
-                  />
-                </div>
-
-                <small>
-                  ₹41,000 / ₹50,000 goal
-                </small>
-              </div>
-
-              <div className="mini-widget">
-                <span>
-                  API Usage
-                </span>
-
-                <strong>
-                  8,450 / 10,000
-                </strong>
-
-                <div className="progress">
-                  <div
-                    style={{
-                      width: "84.5%"
-                    }}
-                  />
-                </div>
-
-                <small>
-                  84.5% used today
-                </small>
-              </div>
-
-              <div className="mini-widget">
-                <span>
-                  Pending Payments
-                </span>
-
-                <strong>
-                  ₹84,920
-                </strong>
-
-                <small>
-                  17 unpaid invoices
-                </small>
-              </div>
-            </div>
-
-            {/* BOTTOM */}
+            {/* QUICK STATS */}
 
             <div className="bottom-grid">
               <div className="info-card">
@@ -2033,6 +2164,20 @@ function Dashboard({ user, onLogout }) {
 
               <div className="info-card">
                 <span>
+                  Current Streak
+                </span>
+
+                <strong>
+                  🔥 {streak} days
+                </strong>
+
+                <small>
+                  Personal productivity streak
+                </small>
+              </div>
+
+              <div className="info-card">
+                <span>
                   Account Status
                 </span>
 
@@ -2044,27 +2189,368 @@ function Dashboard({ user, onLogout }) {
                   Your account is active
                 </small>
               </div>
+            </div>
 
-              <div className="info-card">
+            {/* WIDGETS */}
+
+            <div className="widget-grid">
+              <div className="dashboard-panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>
+                      Quick Notes
+                    </h2>
+
+                    <p>
+                      Personal scratchpad
+                    </p>
+                  </div>
+
+                  <span>📝</span>
+                </div>
+
+                <textarea
+                  className="notes-widget"
+                  value={notes}
+                  onChange={(event) =>
+                    setNotes(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Write something..."
+                />
+              </div>
+
+              <div className="dashboard-panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>
+                      System Health
+                    </h2>
+
+                    <p>
+                      Current service status
+                    </p>
+                  </div>
+
+                  <span className="healthy-badge">
+                    Healthy
+                  </span>
+                </div>
+
+                <div className="health-row">
+                  <span>
+                    Database
+                  </span>
+
+                  <strong>
+                    <i></i> OK
+                  </strong>
+                </div>
+
+                <div className="health-row">
+                  <span>
+                    Firebase Auth
+                  </span>
+
+                  <strong>
+                    <i></i> 99.9%
+                  </strong>
+                </div>
+
+                <div className="health-row">
+                  <span>
+                    API
+                  </span>
+
+                  <strong>
+                    <i></i> Operational
+                  </strong>
+                </div>
+
+                <div className="storage-block">
+                  <div>
+                    <span>
+                      Storage Usage
+                    </span>
+
+                    <strong>
+                      45 GB / 100 GB
+                    </strong>
+                  </div>
+
+                  <div className="progress">
+                    <div
+                      style={{
+                        width: "45%"
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="dashboard-panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>
+                      Recent Activity
+                    </h2>
+
+                    <p>
+                      Latest account events
+                    </p>
+                  </div>
+
+                  <button
+                    className="panel-action"
+                    onClick={() =>
+                      setActivityRefresh(
+                        (value) =>
+                          value + 1
+                      )
+                    }
+                  >
+                    🔄 Refresh
+                  </button>
+                </div>
+
+                <div className="activity-list">
+                  <div className="activity">
+                    <div className="activity-icon">
+                      ✓
+                    </div>
+
+                    <div>
+                      <strong>
+                        Profile updated
+                      </strong>
+
+                      <span>
+                        Your profile was updated
+                      </span>
+
+                      <small>
+                        10 minutes ago
+                      </small>
+                    </div>
+                  </div>
+
+                  <div className="activity">
+                    <div className="activity-icon">
+                      🔐
+                    </div>
+
+                    <div>
+                      <strong>
+                        Successful login
+                      </strong>
+
+                      <span>
+                        New login from browser
+                      </span>
+
+                      <small>
+                        35 minutes ago
+                      </small>
+                    </div>
+                  </div>
+
+                  <div className="activity">
+                    <div className="activity-icon">
+                      ☁
+                    </div>
+
+                    <div>
+                      <strong>
+                        Database synced
+                      </strong>
+
+                      <span>
+                        Firebase data synchronized
+                      </span>
+
+                      <small>
+                        1 hour ago
+                      </small>
+                    </div>
+                  </div>
+
+                  <div className="activity">
+                    <div className="activity-icon">
+                      ★
+                    </div>
+
+                    <div>
+                      <strong>
+                        Dashboard loaded
+                      </strong>
+
+                      <span>
+                        Activity refreshed #
+                        {activityRefresh}
+                      </span>
+
+                      <small>
+                        Recently
+                      </small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="dashboard-panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>
+                      Financial Snapshot
+                    </h2>
+
+                    <p>
+                      Operational metrics
+                    </p>
+                  </div>
+                </div>
+
+                <div className="financial-list">
+                  <div>
+                    <span>
+                      Monthly Goal
+                    </span>
+
+                    <strong>
+                      82%
+                    </strong>
+                  </div>
+
+                  <div className="progress">
+                    <div
+                      style={{
+                        width: "82%"
+                      }}
+                    />
+                  </div>
+
+                  <div className="financial-mini-grid">
+                    <div>
+                      <span>
+                        Pending
+                      </span>
+
+                      <strong>
+                        ₹18,400
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        Refunds
+                      </span>
+
+                      <strong>
+                        ₹4,250
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        AOV
+                      </span>
+
+                      <strong>
+                        ₹8,420
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        API Usage
+                      </span>
+
+                      <strong>
+                        84.5%
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* EXTRA ANALYTICS */}
+
+            <div className="analytics-preview-grid">
+              <div className="analytics-mini-card">
                 <span>
-                  Session
+                  Organic Traffic
                 </span>
 
-                <strong className="session-warning">
-                  5 min
+                <strong>
+                  48.6%
+                </strong>
+
+                <div className="mini-bars">
+                  {[50, 70, 42, 90, 65].map(
+                    (height, index) => (
+                      <i
+                        key={index}
+                        style={{
+                          height: `${height}%`
+                        }}
+                      />
+                    )
+                  )}
+                </div>
+              </div>
+
+              <div className="analytics-mini-card">
+                <span>
+                  Conversion Funnel
+                </span>
+
+                <strong>
+                  68.4%
+                </strong>
+
+                <div className="funnel">
+                  <div>Visitors</div>
+                  <div>Interested</div>
+                  <div>Converted</div>
+                </div>
+              </div>
+
+              <div className="analytics-mini-card">
+                <span>
+                  Active Visitors
+                </span>
+
+                <strong>
+                  284
+                </strong>
+
+                <small className="positive">
+                  ● Real-time
+                </small>
+              </div>
+
+              <div className="analytics-mini-card">
+                <span>
+                  Automation
+                </span>
+
+                <strong>
+                  3 Active
                 </strong>
 
                 <small>
-                  Session timeout warning
+                  Workflows running
                 </small>
               </div>
             </div>
           </section>
         )}
 
-        {/* =================================================
+        {/* =========================
             TASKS
-        ================================================= */}
+        ========================= */}
 
         {activePage === "tasks" && (
           <section className="page-section">
@@ -2079,7 +2565,8 @@ function Dashboard({ user, onLogout }) {
                 </h2>
 
                 <p>
-                  Create and manage your tasks.
+                  Create and manage your daily
+                  tasks.
                 </p>
               </div>
 
@@ -2093,19 +2580,23 @@ function Dashboard({ user, onLogout }) {
                 type="text"
                 placeholder="What needs to be done?"
                 value={newTodo}
-                onChange={(e) =>
+                onChange={(event) =>
                   setNewTodo(
-                    e.target.value
+                    event.target.value
                   )
                 }
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
+                onKeyDown={(event) => {
+                  if (
+                    event.key === "Enter"
+                  ) {
                     addTodo();
                   }
                 }}
               />
 
-              <button onClick={addTodo}>
+              <button
+                onClick={addTodo}
+              >
                 Add Task
               </button>
             </div>
@@ -2166,35 +2657,139 @@ function Dashboard({ user, onLogout }) {
           </section>
         )}
 
-        {/* =================================================
-            ANALYTICS
-        ================================================= */}
+        {/* =========================
+            PROFILE
+        ========================= */}
 
-        {activePage === "analytics" && (
+        {activePage === "profile" && (
           <section className="page-section">
-            <div className="section-heading">
-              <div>
-                <span className="eyebrow">
-                  REPORTS
-                </span>
+            <div className="profile-header">
+              <div className="large-avatar">
+                {profile.name
+                  ?.charAt(0)
+                  .toUpperCase() ||
+                  "R"}
+              </div>
 
+              <div>
                 <h2>
-                  Analytics Overview
+                  {profile.name}
                 </h2>
 
                 <p>
-                  Your application performance
+                  {profile.email}
                 </p>
+
+                <span
+                  className={`role-badge ${profile.role}`}
+                >
+                  {userRoleLabel(
+                    profile.role
+                  )}
+                </span>
+              </div>
+            </div>
+
+            {message && (
+              <div className="success-message">
+                ✓ {message}
+              </div>
+            )}
+
+            <div className="form-card">
+              <h2>
+                Personal Information
+              </h2>
+
+              <div className="profile-form">
+                <label>
+                  Full Name
+
+                  <input
+                    value={
+                      profile.name
+                    }
+                    onChange={(event) =>
+                      setProfile({
+                        ...profile,
+                        name: event.target
+                          .value
+                      })
+                    }
+                  />
+                </label>
+
+                <label>
+                  Email
+
+                  <input
+                    value={
+                      profile.email
+                    }
+                    disabled
+                  />
+                </label>
+
+                <label>
+                  Phone
+
+                  <input
+                    value={
+                      profile.phone
+                    }
+                    onChange={(event) =>
+                      setProfile({
+                        ...profile,
+                        phone: event.target
+                          .value
+                      })
+                    }
+                  />
+                </label>
+
+                <label>
+                  Role
+
+                  <input
+                    value={userRoleLabel(
+                      profile.role
+                    )}
+                    disabled
+                  />
+                </label>
               </div>
 
               <button
-                className="outline-button"
-                onClick={() =>
-                  window.print()
+                className="save-button"
+                onClick={
+                  updateProfile
                 }
               >
-                Export / Print
+                Save Changes
               </button>
+            </div>
+          </section>
+        )}
+
+        {/* =========================
+            ANALYTICS
+        ========================= */}
+
+        {activePage === "analytics" && (
+          <section className="page-section">
+            <div className="analytics-header">
+              <span className="eyebrow">
+                REPORTING CENTER
+              </span>
+
+              <h2>
+                Analytics Overview
+              </h2>
+
+              <p>
+                Demo analytics and live
+                productivity indicators.
+              </p>
             </div>
 
             <div className="analytics-grid">
@@ -2255,202 +2850,171 @@ function Dashboard({ user, onLogout }) {
               </div>
             </div>
 
-            <div className="chart-card">
-              <div className="panel-header">
-                <div>
-                  <h2>
-                    Weekly Activity
-                  </h2>
-
-                  <p>
-                    User activity for the last
-                    7 days
-                  </p>
-                </div>
-              </div>
-
-              <div className="fake-chart">
-                <div
-                  style={{
-                    height: "35%"
-                  }}
-                >
-                  <span>Mon</span>
-                </div>
-
-                <div
-                  style={{
-                    height: "60%"
-                  }}
-                >
-                  <span>Tue</span>
-                </div>
-
-                <div
-                  style={{
-                    height: "45%"
-                  }}
-                >
-                  <span>Wed</span>
-                </div>
-
-                <div
-                  style={{
-                    height: "80%"
-                  }}
-                >
-                  <span>Thu</span>
-                </div>
-
-                <div
-                  style={{
-                    height: "65%"
-                  }}
-                >
-                  <span>Fri</span>
-                </div>
-
-                <div
-                  style={{
-                    height: "90%"
-                  }}
-                >
-                  <span>Sat</span>
-                </div>
-
-                <div
-                  style={{
-                    height: "75%"
-                  }}
-                >
-                  <span>Sun</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="three-grid">
-              <div className="dashboard-panel">
+            <div className="analytics-layout">
+              <div className="chart-card">
                 <div className="panel-header">
                   <div>
                     <h2>
-                      Weekly Performance
+                      Revenue Growth
                     </h2>
 
                     <p>
-                      Productivity trend
+                      Monthly performance
                     </p>
                   </div>
                 </div>
 
-                <div className="performance-bars">
-                  {[65, 74, 68, 82, 76, 91, 87].map(
-                    (value, index) => (
+                <div className="line-chart">
+                  {[30, 45, 38, 70, 55, 82, 72, 92].map(
+                    (height, index) => (
                       <div
                         key={index}
+                        className="line-point"
+                        style={{
+                          height: `${height}%`
+                        }}
                       >
-                        <i
-                          style={{
-                            height: `${value}%`
-                          }}
-                        />
-
-                        <span>
-                          {[
-                            "M",
-                            "T",
-                            "W",
-                            "T",
-                            "F",
-                            "S",
-                            "S"
-                          ][index]}
-                        </span>
+                        <i />
                       </div>
                     )
                   )}
                 </div>
               </div>
 
-              <div className="dashboard-panel">
+              <div className="chart-card">
                 <div className="panel-header">
                   <div>
                     <h2>
-                      Geographic Activity
+                      Sales Categories
                     </h2>
 
                     <p>
-                      Global users
+                      Revenue distribution
                     </p>
                   </div>
                 </div>
 
-                <div className="world-map">
-                  🌎
-                  <span>
-                    72 Countries
-                  </span>
+                <div className="donut-wrapper">
+                  <div className="donut">
+                    <div>
+                      <strong>
+                        68%
+                      </strong>
+
+                      <span>
+                        Sales
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="legend">
+                    <span>
+                      <i />
+                      Development 42%
+                    </span>
+
+                    <span>
+                      <i />
+                      Design 28%
+                    </span>
+
+                    <span>
+                      <i />
+                      Services 18%
+                    </span>
+
+                    <span>
+                      <i />
+                      Other 12%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="traffic-card">
+              <div className="panel-header">
+                <div>
+                  <h2>
+                    User Traffic Sources
+                  </h2>
+
+                  <p>
+                    Organic, direct and referral
+                    traffic
+                  </p>
                 </div>
               </div>
 
-              <div className="dashboard-panel">
-                <div className="panel-header">
-                  <div>
-                    <h2>
-                      Operational Status
-                    </h2>
+              <div className="traffic-bars">
+                <div>
+                  <span>
+                    Organic
+                  </span>
 
-                    <p>
-                      Current infrastructure
-                    </p>
+                  <div>
+                    <i
+                      style={{
+                        width: "82%"
+                      }}
+                    />
                   </div>
+
+                  <strong>
+                    82%
+                  </strong>
                 </div>
 
-                <div className="status-list">
-                  <div>
-                    <span>
-                      Firebase
-                    </span>
-
-                    <b>
-                      ● Operational
-                    </b>
-                  </div>
+                <div>
+                  <span>
+                    Direct
+                  </span>
 
                   <div>
-                    <span>
-                      Authentication
-                    </span>
-
-                    <b>
-                      ● Operational
-                    </b>
+                    <i
+                      style={{
+                        width: "64%"
+                      }}
+                    />
                   </div>
+
+                  <strong>
+                    64%
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Referral
+                  </span>
 
                   <div>
-                    <span>
-                      API
-                    </span>
-
-                    <b>
-                      ● 99.9%
-                    </b>
+                    <i
+                      style={{
+                        width: "48%"
+                      }}
+                    />
                   </div>
+
+                  <strong>
+                    48%
+                  </strong>
                 </div>
               </div>
             </div>
           </section>
         )}
 
-        {/* =================================================
+        {/* =========================
             ORDERS
-        ================================================= */}
+        ========================= */}
 
         {activePage === "orders" && (
           <section className="page-section">
             <div className="section-heading">
               <div>
                 <span className="eyebrow">
-                  DATA MANAGEMENT
+                  COMMERCE
                 </span>
 
                 <h2>
@@ -2458,126 +3022,151 @@ function Dashboard({ user, onLogout }) {
                 </h2>
 
                 <p>
-                  Manage customers,
-                  transactions and statuses.
+                  Manage customers, orders,
+                  status and payments.
                 </p>
               </div>
 
-              <div className="heading-actions">
-                <button
-                  className="outline-button"
-                  onClick={exportCSV}
-                >
-                  ↓ CSV
-                </button>
-
-                <button
-                  className="outline-button"
-                  onClick={() =>
-                    window.print()
-                  }
-                >
-                  PDF / Print
-                </button>
-              </div>
+              <button
+                className="primary-button"
+                onClick={() =>
+                  setShowOrderModal(true)
+                }
+              >
+                + Add Order
+              </button>
             </div>
 
-            <div className="dashboard-panel table-panel">
-              <div className="table-controls">
-                <div className="table-search">
-                  ⌕
-                  <input
-                    placeholder="Search orders..."
-                    value={orderSearch}
-                    onChange={(e) =>
-                      setOrderSearch(
-                        e.target.value
-                      )
-                    }
-                  />
-                </div>
+            <div className="order-controls">
+              <div className="table-search">
+                🔎
 
-                <select
-                  value={orderStatus}
-                  onChange={(e) =>
-                    setOrderStatus(
-                      e.target.value
-                    )
-                  }
-                >
-                  <option>
-                    All
-                  </option>
-
-                  <option>
-                    Completed
-                  </option>
-
-                  <option>
-                    Pending
-                  </option>
-
-                  <option>
-                    Failed
-                  </option>
-                </select>
-
-                <select
-                  value={currency}
-                  onChange={(e) =>
-                    setCurrency(
-                      e.target.value
-                    )
-                  }
-                >
-                  <option value="INR">
-                    ₹ INR
-                  </option>
-
-                  <option value="USD">
-                    $ USD
-                  </option>
-
-                  <option value="EUR">
-                    € EUR
-                  </option>
-                </select>
-
-                <select
-                  value={rowsPerPage}
-                  onChange={(e) =>
-                    setRowsPerPage(
-                      Number(
-                        e.target.value
-                      )
-                    )
-                  }
-                >
-                  <option value={10}>
-                    10 rows
-                  </option>
-
-                  <option value={25}>
-                    25 rows
-                  </option>
-
-                  <option value={50}>
-                    50 rows
-                  </option>
-                </select>
-
-                <button
-                  className="outline-button"
-                  onClick={() =>
-                    setZenMode(
-                      !zenMode
-                    )
-                  }
-                >
-                  ⛶ Zen
-                </button>
+                <input
+                  placeholder="Search order, customer or email..."
+                  value={orderSearch}
+                  onChange={(event) => {
+                    setOrderSearch(
+                      event.target.value
+                    );
+                    setCurrentOrderPage(
+                      1
+                    );
+                  }}
+                />
               </div>
 
+              <select
+                value={orderStatus}
+                onChange={(event) => {
+                  setOrderStatus(
+                    event.target.value
+                  );
+                  setCurrentOrderPage(
+                    1
+                  );
+                }}
+              >
+                <option>
+                  All
+                </option>
+
+                <option>
+                  Pending
+                </option>
+
+                <option>
+                  Completed
+                </option>
+
+                <option>
+                  Failed
+                </option>
+              </select>
+
+              <select
+                value={rowsPerPage}
+                onChange={(event) => {
+                  setRowsPerPage(
+                    Number(
+                      event.target.value
+                    )
+                  );
+                  setCurrentOrderPage(
+                    1
+                  );
+                }}
+              >
+                <option value="5">
+                  5 rows
+                </option>
+
+                <option value="10">
+                  10 rows
+                </option>
+
+                <option value="25">
+                  25 rows
+                </option>
+              </select>
+
+              <select
+                value={currency}
+                onChange={(event) =>
+                  setCurrency(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="INR">
+                  ₹ INR
+                </option>
+
+                <option value="USD">
+                  $ USD
+                </option>
+
+                <option value="EUR">
+                  € EUR
+                </option>
+              </select>
+
+              <button
+                className="outline-button"
+                onClick={exportCSV}
+              >
+                ↓ CSV
+              </button>
+            </div>
+
+            {selectedOrders.length > 0 && (
+              <div className="bulk-bar">
+                <strong>
+                  {selectedOrders.length}{" "}
+                  selected
+                </strong>
+
+                <div>
+                  <button
+                    onClick={
+                      markSelectedCompleted
+                    }
+                  >
+                    ✓ Mark Completed
+                  </button>
+
+                  <button
+                    className="danger-button"
+                    onClick={
+                      deleteSelectedOrders
+                    }
+                  >
+                    Delete Selected
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="table-card">
               <div className="table-wrapper">
                 <table>
                   <thead>
@@ -2585,11 +3174,26 @@ function Dashboard({ user, onLogout }) {
                       <th>
                         <input
                           type="checkbox"
+                          checked={
+                            visibleOrders.length >
+                              0 &&
+                            visibleOrders.every(
+                              (order) =>
+                                selectedOrders.includes(
+                                  order.id
+                                )
+                            )
+                          }
+                          onChange={() =>
+                            toggleAllOrders(
+                              visibleOrders
+                            )
+                          }
                         />
                       </th>
 
                       <th>
-                        Order ID
+                        Order
                       </th>
 
                       <th>
@@ -2597,7 +3201,7 @@ function Dashboard({ user, onLogout }) {
                       </th>
 
                       <th>
-                        Date & Time
+                        Date
                       </th>
 
                       <th>
@@ -2609,24 +3213,28 @@ function Dashboard({ user, onLogout }) {
                       </th>
 
                       <th>
-                        Actions
+                        Action
                       </th>
                     </tr>
                   </thead>
 
                   <tbody>
-                    {filteredOrders
-                      .slice(
-                        0,
-                        rowsPerPage
-                      )
-                      .map((order) => (
+                    {visibleOrders.map(
+                      (order) => (
                         <tr
                           key={order.id}
                         >
                           <td>
                             <input
                               type="checkbox"
+                              checked={selectedOrders.includes(
+                                order.id
+                              )}
+                              onChange={() =>
+                                toggleOrderSelection(
+                                  order.id
+                                )
+                              }
                             />
                           </td>
 
@@ -2638,7 +3246,7 @@ function Dashboard({ user, onLogout }) {
 
                           <td>
                             <div className="customer-cell">
-                              <div className="small-avatar">
+                              <div className="table-avatar">
                                 {order.customer
                                   .charAt(
                                     0
@@ -2663,167 +3271,222 @@ function Dashboard({ user, onLogout }) {
                           </td>
 
                           <td>
-                            <strong>
-                              {order.date}
-                            </strong>
-
-                            <span className="table-muted">
-                              {order.time}
-                            </span>
+                            {order.date}
                           </td>
 
                           <td>
                             <strong>
-                              {formatCurrency(
+                              {formatMoney(
                                 order.amount
                               )}
                             </strong>
                           </td>
 
                           <td>
-                            <span
-                              className={`status-pill ${order.status.toLowerCase()}`}
+                            <select
+                              className={`status-select ${order.status.toLowerCase()}`}
+                              value={
+                                order.status
+                              }
+                              onChange={(
+                                event
+                              ) =>
+                                updateOrderStatus(
+                                  order.id,
+                                  event
+                                    .target
+                                    .value
+                                )
+                              }
                             >
-                              {order.status}
-                            </span>
+                              <option>
+                                Pending
+                              </option>
+
+                              <option>
+                                Completed
+                              </option>
+
+                              <option>
+                                Failed
+                              </option>
+                            </select>
                           </td>
 
                           <td>
-                            <div className="table-actions">
-                              <button
-                                title="View"
-                              >
-                                👁
-                              </button>
-
-                              <button
-                                title="Edit"
-                              >
-                                ✎
-                              </button>
-
-                              <button
-                                title="Delete"
-                                onClick={() =>
-                                  setOrders(
-                                    (current) =>
-                                      current.filter(
-                                        (item) =>
-                                          item.id !==
-                                          order.id
-                                      )
-                                  )
-                                }
-                              >
-                                ×
-                              </button>
-                            </div>
+                            <button
+                              className="table-delete"
+                              onClick={() =>
+                                deleteOrder(
+                                  order.id
+                                )
+                              }
+                            >
+                              🗑
+                            </button>
                           </td>
                         </tr>
-                      ))}
+                      )
+                    )}
                   </tbody>
                 </table>
               </div>
 
-              <div className="table-footer">
+              {visibleOrders.length ===
+                0 && (
+                <div className="empty-state large">
+                  No orders found.
+                </div>
+              )}
+
+              <div className="pagination">
                 <span>
-                  Showing 1–
-                  {
-                    Math.min(
+                  Showing{" "}
+                  {filteredOrders.length
+                    ? (currentOrderPage -
+                        1) *
+                        rowsPerPage +
+                      1
+                    : 0}
+                  –
+                  {Math.min(
+                    currentOrderPage *
                       rowsPerPage,
-                      filteredOrders.length
-                    )
-                  }{" "}
+                    filteredOrders.length
+                  )}{" "}
                   of{" "}
                   {filteredOrders.length}{" "}
                   results
                 </span>
 
-                <div className="pagination">
-                  <button>
+                <div>
+                  <button
+                    disabled={
+                      currentOrderPage ===
+                      1
+                    }
+                    onClick={() =>
+                      setCurrentOrderPage(
+                        (page) =>
+                          Math.max(
+                            1,
+                            page - 1
+                          )
+                      )
+                    }
+                  >
                     ←
                   </button>
 
-                  <button className="active">
-                    1
-                  </button>
+                  {Array.from(
+                    {
+                      length:
+                        totalOrderPages
+                    },
+                    (_, index) => (
+                      <button
+                        key={index}
+                        className={
+                          currentOrderPage ===
+                          index + 1
+                            ? "active"
+                            : ""
+                        }
+                        onClick={() =>
+                          setCurrentOrderPage(
+                            index + 1
+                          )
+                        }
+                      >
+                        {index + 1}
+                      </button>
+                    )
+                  )}
 
-                  <button>
-                    2
-                  </button>
-
-                  <button>
-                    3
-                  </button>
-
-                  <button>
+                  <button
+                    disabled={
+                      currentOrderPage ===
+                      totalOrderPages
+                    }
+                    onClick={() =>
+                      setCurrentOrderPage(
+                        (page) =>
+                          Math.min(
+                            totalOrderPages,
+                            page + 1
+                          )
+                      )
+                    }
+                  >
                     →
                   </button>
                 </div>
               </div>
             </div>
 
-            <div className="three-grid">
-              <div className="dashboard-panel financial-card">
-                <span className="eyebrow">
-                  FINANCIAL
+            <div className="secondary-widget-grid">
+              <div className="small-widget">
+                <span>
+                  Top Selling Product
                 </span>
 
-                <h2>
-                  Average Order Value
-                </h2>
-
                 <strong>
-                  ₹8,492
-                </strong>
-
-                <small className="positive">
-                  +7.8% compared to last month
-                </small>
-              </div>
-
-              <div className="dashboard-panel financial-card">
-                <span className="eyebrow">
-                  REFUNDS
-                </span>
-
-                <h2>
-                  Refunds & Chargebacks
-                </h2>
-
-                <strong>
-                  28
+                  RAF AI Pro
                 </strong>
 
                 <small>
-                  2.4% of total transactions
+                  428 sales
                 </small>
               </div>
 
-              <div className="dashboard-panel financial-card">
-                <span className="eyebrow">
-                  AUTOMATION
+              <div className="small-widget">
+                <span>
+                  Customer Feedback
                 </span>
 
-                <h2>
-                  Active Automations
-                </h2>
-
                 <strong>
-                  3
+                  ⭐ 4.8/5
                 </strong>
 
-                <small className="positive">
-                  All workflows running
+                <small>
+                  Based on 284 reviews
+                </small>
+              </div>
+
+              <div className="small-widget">
+                <span>
+                  Pending Invoices
+                </span>
+
+                <strong>
+                  ₹28,450
+                </strong>
+
+                <small>
+                  7 invoices
+                </small>
+              </div>
+
+              <div className="small-widget">
+                <span>
+                  Integrations
+                </span>
+
+                <strong>
+                  GitHub · AWS · Stripe
+                </strong>
+
+                <small>
+                  All connected
                 </small>
               </div>
             </div>
           </section>
         )}
 
-        {/* =================================================
+        {/* =========================
             WORLD CLOCK
-        ================================================= */}
+        ========================= */}
 
         {activePage === "clocks" && (
           <section className="page-section">
@@ -2838,225 +3501,452 @@ function Dashboard({ user, onLogout }) {
                 </h2>
 
                 <p>
-                  Live time across major regions.
+                  Live time across major
+                  regions.
                 </p>
               </div>
 
-              <div className="live-clock-main">
-                {currentTime.toLocaleTimeString(
+              <div className="live-clock">
+                🕐{" "}
+                {clockTime.toLocaleTimeString(
                   "en-IN"
                 )}
               </div>
             </div>
 
             <div className="clock-grid">
-              {cities.map((city) => (
-                <div
-                  className="clock-card"
-                  key={city.zone}
-                >
-                  <div className="clock-top">
-                    <span className="clock-flag">
-                      {city.flag}
-                    </span>
+              {countries.map(
+                (country) => (
+                  <div
+                    className="clock-card"
+                    key={country.city}
+                  >
+                    <div className="clock-country">
+                      <span>
+                        {country.flag}
+                      </span>
 
-                    <span className="clock-zone">
-                      {city.country}
-                    </span>
+                      <div>
+                        <strong>
+                          {country.city}
+                        </strong>
+
+                        <small>
+                          {
+                            country.zone
+                          }
+                        </small>
+                      </div>
+                    </div>
+
+                    <div className="clock-time">
+                      {clockTime.toLocaleTimeString(
+                        "en-US",
+                        {
+                          timeZone:
+                            country.zone,
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          second: "2-digit"
+                        }
+                      )}
+                    </div>
+
+                    <div className="clock-date">
+                      {clockTime.toLocaleDateString(
+                        "en-US",
+                        {
+                          timeZone:
+                            country.zone,
+                          weekday:
+                            "short",
+                          day: "2-digit",
+                          month:
+                            "short"
+                        }
+                      )}
+                    </div>
                   </div>
+                )
+              )}
+            </div>
 
-                  <h3>
-                    {city.city}
-                  </h3>
+            <div className="clock-info-grid">
+              <div className="dashboard-panel">
+                <h2>
+                  Current Local Time
+                </h2>
 
+                <div className="big-live-time">
+                  {clockTime.toLocaleTimeString(
+                    "en-IN"
+                  )}
+                </div>
+
+                <p>
+                  India Standard Time ·
+                  Asia/Kolkata
+                </p>
+              </div>
+
+              <div className="dashboard-panel">
+                <h2>
+                  Auto Refresh
+                </h2>
+
+                <p>
+                  Automatically refresh dashboard
+                  activity.
+                </p>
+
+                <select
+                  className="wide-select"
+                  value={autoRefresh}
+                  onChange={(event) =>
+                    setAutoRefresh(
+                      event.target.value
+                    )
+                  }
+                >
+                  <option>
+                    Off
+                  </option>
+
+                  <option>
+                    5s
+                  </option>
+
+                  <option>
+                    30s
+                  </option>
+
+                  <option>
+                    1m
+                  </option>
+                </select>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* =========================
+            USERS — OWNER ONLY
+        ========================= */}
+
+        {activePage === "users" &&
+          isOwner && (
+            <section className="page-section">
+              <div className="section-heading">
+                <div>
+                  <span className="eyebrow owner-eyebrow">
+                    OWNER CONSOLE
+                  </span>
+
+                  <h2>
+                    User Management
+                  </h2>
+
+                  <p>
+                    Registered accounts and
+                    account metadata.
+                  </p>
+                </div>
+
+                <button
+                  className="outline-button"
+                  onClick={fetchUsers}
+                >
+                  🔄 Refresh Users
+                </button>
+              </div>
+
+              <div className="owner-warning">
+                <div>
+                  🔐
+                </div>
+
+                <div>
                   <strong>
-                    {currentTime.toLocaleTimeString(
-                      "en-US",
-                      {
-                        timeZone:
-                          city.zone,
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
-                        hour12: true
-                      }
-                    )}
+                    Owner access
                   </strong>
 
                   <p>
-                    {currentTime.toLocaleDateString(
-                      "en-IN",
-                      {
-                        timeZone:
-                          city.zone,
-                        weekday: "short",
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric"
-                      }
-                    )}
+                    You can view registered
+                    profile metadata here.
+                    Passwords are never
+                    displayed. Use password
+                    reset instead.
                   </p>
-
-                  <div className="clock-bar">
-                    <span />
-                  </div>
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* =================================================
-            PROFILE
-        ================================================= */}
-
-        {activePage === "profile" && (
-          <section className="page-section">
-            <div className="profile-header">
-              <div className="large-avatar">
-                {profile.name
-                  ? profile.name
-                      .charAt(0)
-                      .toUpperCase()
-                  : "R"}
               </div>
 
-              <div>
-                <span className="eyebrow">
-                  ACCOUNT
-                </span>
+              <div className="owner-kpi-grid">
+                <div>
+                  <span>
+                    Registered Users
+                  </span>
 
-                <h2>
-                  {profile.name}
-                </h2>
+                  <strong>
+                    {users.length}
+                  </strong>
+                </div>
 
-                <p>
-                  {profile.email}
-                </p>
+                <div>
+                  <span>
+                    Owners
+                  </span>
+
+                  <strong>
+                    {
+                      users.filter(
+                        (item) =>
+                          item.role ===
+                          "owner"
+                      ).length
+                    }
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Admins
+                  </span>
+
+                  <strong>
+                    {
+                      users.filter(
+                        (item) =>
+                          item.role ===
+                          "admin"
+                      ).length
+                    }
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Regular Users
+                  </span>
+
+                  <strong>
+                    {
+                      users.filter(
+                        (item) =>
+                          ![
+                            "owner",
+                            "admin"
+                          ].includes(
+                            item.role
+                          )
+                      ).length
+                    }
+                  </strong>
+                </div>
               </div>
-            </div>
 
-            {message && (
-              <div className="success-message">
-                ✓ {message}
-              </div>
-            )}
-
-            <div className="form-card">
-              <h2>
-                Personal Information
-              </h2>
-
-              <div className="profile-form">
-                <label>
-                  Full Name
+              <div className="user-controls">
+                <div className="table-search">
+                  🔎
 
                   <input
-                    value={profile.name}
-                    onChange={(e) =>
-                      setProfile({
-                        ...profile,
-                        name: e.target.value
-                      })
+                    placeholder="Search name, email or UID..."
+                    value={userSearch}
+                    onChange={(event) =>
+                      setUserSearch(
+                        event.target.value
+                      )
                     }
                   />
-                </label>
+                </div>
 
-                <label>
-                  Email
+                <select
+                  value={
+                    userRoleFilter
+                  }
+                  onChange={(event) =>
+                    setUserRoleFilter(
+                      event.target.value
+                    )
+                  }
+                >
+                  <option>
+                    All
+                  </option>
 
-                  <input
-                    value={profile.email}
-                    disabled
-                  />
-                </label>
+                  <option value="owner">
+                    Owner
+                  </option>
 
-                <label>
-                  Phone
+                  <option value="admin">
+                    Admin
+                  </option>
 
-                  <input
-                    value={profile.phone}
-                    onChange={(e) =>
-                      setProfile({
-                        ...profile,
-                        phone: e.target.value
-                      })
-                    }
-                  />
-                </label>
+                  <option value="user">
+                    User
+                  </option>
+                </select>
               </div>
 
-              <button
-                className="save-button"
-                onClick={
-                  updateProfile
-                }
-              >
-                Save Changes
-              </button>
-            </div>
+              <div className="table-card">
+                {usersLoading ? (
+                  <div className="loading-box">
+                    <div className="spinner"></div>
+                    Loading registered users...
+                  </div>
+                ) : (
+                  <div className="table-wrapper">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>
+                            User
+                          </th>
 
-            <div className="three-grid">
-              <div className="dashboard-panel">
-                <span className="eyebrow">
-                  SECURITY
-                </span>
+                          <th>
+                            Email
+                          </th>
 
-                <h2>
-                  Authentication
-                </h2>
+                          <th>
+                            Role
+                          </th>
 
-                <p>
-                  Firebase Authentication
-                </p>
+                          <th>
+                            Provider
+                          </th>
 
-                <span className="status-pill completed">
-                  Protected
-                </span>
+                          <th>
+                            Phone
+                          </th>
+
+                          <th>
+                            Created
+                          </th>
+
+                          <th>
+                            Status
+                          </th>
+
+                          <th>
+                            Details
+                          </th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {filteredUsers.map(
+                          (item) => (
+                            <tr
+                              key={
+                                item.uid
+                              }
+                            >
+                              <td>
+                                <div className="customer-cell">
+                                  <div className="table-avatar">
+                                    {item.name
+                                      ?.charAt(
+                                        0
+                                      )
+                                      .toUpperCase() ||
+                                      "U"}
+                                  </div>
+
+                                  <div>
+                                    <strong>
+                                      {item.name ||
+                                        "Unnamed User"}
+                                    </strong>
+
+                                    <span className="uid-text">
+                                      UID:{" "}
+                                      {
+                                        item.uid
+                                      }
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td>
+                                {
+                                  item.email
+                                }
+                              </td>
+
+                              <td>
+                                <span
+                                  className={`role-badge ${
+                                    item.role
+                                  }`}
+                                >
+                                  {userRoleLabel(
+                                    item.role
+                                  )}
+                                </span>
+                              </td>
+
+                              <td>
+                                <span className="provider-badge">
+                                  {item.provider ||
+                                    "email"}
+                                </span>
+                              </td>
+
+                              <td>
+                                {item.phone ||
+                                  "Not provided"}
+                              </td>
+
+                              <td>
+                                {item.createdAt
+                                  ? new Date(
+                                      item.createdAt
+                                    ).toLocaleDateString(
+                                      "en-IN"
+                                    )
+                                  : "Unknown"}
+                              </td>
+
+                              <td>
+                                <span className="status-pill completed">
+                                  ● Active
+                                </span>
+                              </td>
+
+                              <td>
+                                <button
+                                  className="view-user-button"
+                                  onClick={() =>
+                                    setSelectedUser(
+                                      item
+                                    )
+                                  }
+                                >
+                                  View
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {!usersLoading &&
+                  filteredUsers.length ===
+                    0 && (
+                    <div className="empty-state large">
+                      No registered users found.
+                    </div>
+                  )}
               </div>
+            </section>
+          )}
 
-              <div className="dashboard-panel">
-                <span className="eyebrow">
-                  PROVIDER
-                </span>
-
-                <h2>
-                  Login Provider
-                </h2>
-
-                <p>
-                  Email / Google
-                </p>
-
-                <span className="status-pill completed">
-                  Connected
-                </span>
-              </div>
-
-              <div className="dashboard-panel">
-                <span className="eyebrow">
-                  DATABASE
-                </span>
-
-                <h2>
-                  Realtime Database
-                </h2>
-
-                <p>
-                  Firebase RTDB
-                </p>
-
-                <span className="status-pill completed">
-                  Synced
-                </span>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* =================================================
+        {/* =========================
             SETTINGS
-        ================================================= */}
+        ========================= */}
 
         {activePage === "settings" && (
           <section className="page-section">
@@ -3071,210 +3961,588 @@ function Dashboard({ user, onLogout }) {
                 </h2>
 
                 <p>
-                  Manage your dashboard
-                  preferences.
+                  Manage dashboard preferences.
                 </p>
               </div>
             </div>
 
-            <div className="settings-card">
-              <div className="setting-row">
-                <div>
-                  <strong>
-                    Email Notifications
-                  </strong>
+            <div className="settings-layout">
+              <div className="settings-card">
+                <div className="setting-row">
+                  <div>
+                    <strong>
+                      Email Notifications
+                    </strong>
 
-                  <span>
-                    Receive notifications about
-                    your account
-                  </span>
+                    <span>
+                      Receive notifications
+                      about your account.
+                    </span>
+                  </div>
+
+                  <input
+                    type="checkbox"
+                    defaultChecked
+                  />
                 </div>
 
-                <input
-                  type="checkbox"
-                  defaultChecked
-                />
-              </div>
+                <div className="setting-row">
+                  <div>
+                    <strong>
+                      Activity Alerts
+                    </strong>
 
-              <div className="setting-row">
-                <div>
-                  <strong>
-                    Activity Alerts
-                  </strong>
+                    <span>
+                      Get alerts about new
+                      account activity.
+                    </span>
+                  </div>
 
-                  <span>
-                    Get alerts about new account
-                    activity
-                  </span>
+                  <input
+                    type="checkbox"
+                    defaultChecked
+                  />
                 </div>
 
-                <input
-                  type="checkbox"
-                  defaultChecked
-                />
-              </div>
+                <div className="setting-row">
+                  <div>
+                    <strong>
+                      Auto Sync
+                    </strong>
 
-              <div className="setting-row">
-                <div>
-                  <strong>
-                    Auto Sync
-                  </strong>
+                    <span>
+                      Automatically synchronize
+                      dashboard data.
+                    </span>
+                  </div>
 
-                  <span>
-                    Automatically synchronize data
-                  </span>
+                  <input
+                    type="checkbox"
+                    defaultChecked
+                  />
                 </div>
 
-                <input
-                  type="checkbox"
-                  defaultChecked
-                />
-              </div>
+                <div className="setting-row">
+                  <div>
+                    <strong>
+                      Dark Mode
+                    </strong>
 
-              <div className="setting-row">
-                <div>
-                  <strong>
-                    Auto Refresh
-                  </strong>
+                    <span>
+                      Switch dashboard appearance.
+                    </span>
+                  </div>
 
-                  <span>
-                    Automatically refresh dashboard
-                    data
-                  </span>
+                  <button
+                    className="mini-toggle"
+                    onClick={() =>
+                      setDarkMode(
+                        (current) =>
+                          !current
+                      )
+                    }
+                  >
+                    {darkMode
+                      ? "ON"
+                      : "OFF"}
+                  </button>
                 </div>
 
-                <select
-                  value={autoRefresh}
-                  onChange={(e) =>
-                    setAutoRefresh(
-                      e.target.value
-                    )
-                  }
-                >
-                  <option value="off">
-                    Off
-                  </option>
+                <div className="setting-row">
+                  <div>
+                    <strong>
+                      Auto Refresh
+                    </strong>
 
-                  <option value="5s">
-                    Every 5 seconds
-                  </option>
+                    <span>
+                      Live reload interval.
+                    </span>
+                  </div>
 
-                  <option value="30s">
-                    Every 30 seconds
-                  </option>
+                  <select
+                    value={autoRefresh}
+                    onChange={(event) =>
+                      setAutoRefresh(
+                        event.target.value
+                      )
+                    }
+                  >
+                    <option>
+                      Off
+                    </option>
 
-                  <option value="1m">
-                    Every minute
-                  </option>
-                </select>
+                    <option>
+                      5s
+                    </option>
+
+                    <option>
+                      30s
+                    </option>
+
+                    <option>
+                      1m
+                    </option>
+                  </select>
+                </div>
               </div>
 
-              <div className="setting-row">
-                <div>
-                  <strong>
-                    Dashboard Layout
-                  </strong>
-
+              <div className="settings-card">
+                <div className="settings-card-title">
                   <span>
-                    Enter distraction-free Zen
-                    Mode
+                    ADVANCED
                   </span>
+
+                  <h2>
+                    Workspace Controls
+                  </h2>
                 </div>
 
                 <button
-                  className="outline-button"
-                  onClick={() =>
-                    setZenMode(
-                      !zenMode
-                    )
-                  }
-                >
-                  {zenMode
-                    ? "Exit Zen"
-                    : "Enter Zen"}
-                </button>
-              </div>
-
-              <div className="setting-row">
-                <div>
-                  <strong>
-                    Currency
-                  </strong>
-
-                  <span>
-                    Choose dashboard display
-                    currency
-                  </span>
-                </div>
-
-                <select
-                  value={currency}
-                  onChange={(e) =>
-                    setCurrency(
-                      e.target.value
-                    )
-                  }
-                >
-                  <option value="INR">
-                    ₹ INR
-                  </option>
-
-                  <option value="USD">
-                    $ USD
-                  </option>
-
-                  <option value="EUR">
-                    € EUR
-                  </option>
-                </select>
-              </div>
-
-              <div className="setting-row">
-                <div>
-                  <strong>
-                    Keyboard Shortcuts
-                  </strong>
-
-                  <span>
-                    View available shortcuts
-                  </span>
-                </div>
-
-                <button
-                  className="outline-button"
+                  className="setting-action"
                   onClick={() =>
                     setShowShortcuts(
                       true
                     )
                   }
                 >
-                  Ctrl + K
+                  ⌨️ Keyboard Shortcuts
+                  <span>→</span>
                 </button>
-              </div>
 
-              <div className="setting-row">
-                <div>
-                  <strong>
-                    Version
-                  </strong>
+                <button
+                  className="setting-action"
+                  onClick={
+                    toggleZenMode
+                  }
+                >
+                  ⛶ Zen Mode
+                  <span>→</span>
+                </button>
 
-                  <span>
-                    RAF AI Dashboard release
-                  </span>
-                </div>
+                <button
+                  className="setting-action"
+                  onClick={() =>
+                    addNotification(
+                      "Release Notes",
+                      "RAF AI v2.4.0 is currently active."
+                    )
+                  }
+                >
+                  ✨ v2.4.0 What's New
+                  <span>→</span>
+                </button>
 
-                <span className="version-badge">
-                  v2.4.0
-                </span>
+                <button
+                  className="setting-action"
+                  onClick={() =>
+                    setShowChat(true)
+                  }
+                >
+                  💬 Support Center
+                  <span>→</span>
+                </button>
               </div>
             </div>
           </section>
         )}
+
+        {/* =========================
+            FOOTER
+        ========================= */}
+
+        <footer className="dashboard-footer">
+          <div>
+            <strong>
+              RAF AI
+            </strong>
+
+            <span>
+              Modern React + Firebase
+              workspace.
+            </span>
+          </div>
+
+          <div>
+            <span>
+              v2.4.0
+            </span>
+
+            <span>
+              © 2026 RAF AI
+            </span>
+          </div>
+        </footer>
       </main>
 
-      {/* =================================================
+      {/* =========================
+          ORDER MODAL
+      ========================= */}
+
+      {showOrderModal && (
+        <div
+          className="modal-backdrop"
+          onClick={() =>
+            setShowOrderModal(false)
+          }
+        >
+          <div
+            className="modal-card"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="modal-header">
+              <div>
+                <span className="eyebrow">
+                  NEW TRANSACTION
+                </span>
+
+                <h2>
+                  Add New Order
+                </h2>
+              </div>
+
+              <button
+                onClick={() =>
+                  setShowOrderModal(
+                    false
+                  )
+                }
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={addOrder}>
+              <label>
+                Customer Name
+
+                <input
+                  required
+                  placeholder="Rahul Kumar"
+                  value={
+                    newOrder.customer
+                  }
+                  onChange={(event) =>
+                    setNewOrder({
+                      ...newOrder,
+                      customer:
+                        event.target
+                          .value
+                    })
+                  }
+                />
+              </label>
+
+              <label>
+                Customer Email
+
+                <input
+                  required
+                  type="email"
+                  placeholder="customer@example.com"
+                  value={
+                    newOrder.email
+                  }
+                  onChange={(event) =>
+                    setNewOrder({
+                      ...newOrder,
+                      email:
+                        event.target
+                          .value
+                    })
+                  }
+                />
+              </label>
+
+              <div className="modal-two-column">
+                <label>
+                  Amount
+
+                  <input
+                    required
+                    type="number"
+                    min="0"
+                    placeholder="9999"
+                    value={
+                      newOrder.amount
+                    }
+                    onChange={(event) =>
+                      setNewOrder({
+                        ...newOrder,
+                        amount:
+                          event.target
+                            .value
+                      })
+                    }
+                  />
+                </label>
+
+                <label>
+                  Status
+
+                  <select
+                    value={
+                      newOrder.status
+                    }
+                    onChange={(event) =>
+                      setNewOrder({
+                        ...newOrder,
+                        status:
+                          event.target
+                            .value
+                      })
+                    }
+                  >
+                    <option>
+                      Pending
+                    </option>
+
+                    <option>
+                      Completed
+                    </option>
+
+                    <option>
+                      Failed
+                    </option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="outline-button"
+                  onClick={() =>
+                    setShowOrderModal(
+                      false
+                    )
+                  }
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="primary-button"
+                >
+                  Create Order
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================
+          USER DETAILS MODAL
+      ========================= */}
+
+      {selectedUser && (
+        <div
+          className="modal-backdrop"
+          onClick={() =>
+            setSelectedUser(null)
+          }
+        >
+          <div
+            className="modal-card user-detail-modal"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="modal-header">
+              <div>
+                <span className="eyebrow owner-eyebrow">
+                  REGISTERED ACCOUNT
+                </span>
+
+                <h2>
+                  User Details
+                </h2>
+              </div>
+
+              <button
+                onClick={() =>
+                  setSelectedUser(
+                    null
+                  )
+                }
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="user-detail-profile">
+              <div className="large-avatar">
+                {selectedUser.name
+                  ?.charAt(0)
+                  .toUpperCase() ||
+                  "U"}
+              </div>
+
+              <div>
+                <h2>
+                  {selectedUser.name ||
+                    "Unnamed User"}
+                </h2>
+
+                <span
+                  className={`role-badge ${
+                    selectedUser.role
+                  }`}
+                >
+                  {userRoleLabel(
+                    selectedUser.role
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <div className="detail-grid">
+              <div>
+                <span>
+                  Full Name
+                </span>
+
+                <strong>
+                  {selectedUser.name ||
+                    "Not provided"}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Email
+                </span>
+
+                <strong>
+                  {selectedUser.email ||
+                    "Not provided"}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Phone
+                </span>
+
+                <strong>
+                  {selectedUser.phone ||
+                    "Not provided"}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Provider
+                </span>
+
+                <strong>
+                  {selectedUser.provider ||
+                    "Email/Password"}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  UID
+                </span>
+
+                <strong className="break-text">
+                  {selectedUser.uid}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Created At
+                </span>
+
+                <strong>
+                  {selectedUser.createdAt
+                    ? new Date(
+                        selectedUser.createdAt
+                      ).toLocaleString(
+                        "en-IN"
+                      )
+                    : "Unknown"}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Email Verified
+                </span>
+
+                <strong>
+                  {selectedUser.emailVerified
+                    ? "Yes"
+                    : "Not recorded"}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Password
+                </span>
+
+                <strong>
+                  🔒 Protected
+                </strong>
+              </div>
+            </div>
+
+            <div className="password-security-note">
+              <strong>
+                🔐 Password security
+              </strong>
+
+              <p>
+                Firebase passwords are not
+                shown as plaintext in this
+                dashboard. If a user forgets
+                their password, use the
+                password reset flow instead of
+                exposing the password.
+              </p>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                className="outline-button"
+                onClick={() =>
+                  setSelectedUser(
+                    null
+                  )
+                }
+              >
+                Close
+              </button>
+
+              <button
+                className="primary-button"
+                onClick={() => {
+                  addNotification(
+                    "Password reset",
+                    `Reset flow requested for ${selectedUser.email}.`
+                  );
+
+                  setSelectedUser(
+                    null
+                  );
+                }}
+              >
+                Send Reset Request
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================
           CHAT DRAWER
-      ================================================= */}
+      ========================= */}
 
       {showChat && (
         <div className="chat-drawer">
@@ -3298,23 +4566,23 @@ function Dashboard({ user, onLogout }) {
             </button>
           </div>
 
-          <div className="chat-body">
+          <div className="chat-messages">
             {chatMessages.map(
-              (item) => (
+              (message) => (
                 <div
+                  key={message.id}
                   className={
-                    item.from === "You"
+                    message.mine
                       ? "chat-message mine"
                       : "chat-message"
                   }
-                  key={item.id}
                 >
-                  <small>
-                    {item.from}
-                  </small>
+                  <span>
+                    {message.sender}
+                  </span>
 
                   <p>
-                    {item.text}
+                    {message.text}
                   </p>
                 </div>
               )
@@ -3323,15 +4591,17 @@ function Dashboard({ user, onLogout }) {
 
           <div className="chat-input">
             <input
-              placeholder="Write a message..."
-              value={chatInput}
-              onChange={(e) =>
-                setChatInput(
-                  e.target.value
+              placeholder="Type a message..."
+              value={chatMessage}
+              onChange={(event) =>
+                setChatMessage(
+                  event.target.value
                 )
               }
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
+              onKeyDown={(event) => {
+                if (
+                  event.key === "Enter"
+                ) {
                   sendChat();
                 }
               }}
@@ -3346,89 +4616,31 @@ function Dashboard({ user, onLogout }) {
         </div>
       )}
 
-      {/* =================================================
-          BUG REPORT
-      ================================================= */}
-
-      <button
-        className="bug-floating"
-        onClick={() =>
-          setShowBugReport(true)
-        }
-      >
-        🐛
-        <span>
-          Report a Bug
-        </span>
-      </button>
-
-      {showBugReport && (
-        <div className="modal-backdrop">
-          <div className="modal">
-            <div className="modal-header">
-              <div>
-                <span className="eyebrow">
-                  FEEDBACK
-                </span>
-
-                <h2>
-                  Report a Bug
-                </h2>
-              </div>
-
-              <button
-                onClick={() =>
-                  setShowBugReport(
-                    false
-                  )
-                }
-              >
-                ×
-              </button>
-            </div>
-
-            <textarea
-              placeholder="Describe the problem..."
-              rows="6"
-            />
-
-            <button
-              className="save-button"
-              onClick={() => {
-                setShowBugReport(
-                  false
-                );
-
-                setMessage(
-                  "Bug report submitted!"
-                );
-
-                setTimeout(() => {
-                  setMessage("");
-                }, 2500);
-              }}
-            >
-              Submit Report
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* =================================================
+      {/* =========================
           SHORTCUT MODAL
-      ================================================= */}
+      ========================= */}
 
       {showShortcuts && (
-        <div className="modal-backdrop">
-          <div className="modal shortcut-modal">
+        <div
+          className="modal-backdrop"
+          onClick={() =>
+            setShowShortcuts(false)
+          }
+        >
+          <div
+            className="modal-card shortcuts-modal"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
             <div className="modal-header">
               <div>
                 <span className="eyebrow">
-                  RAF AI
+                  PRODUCTIVITY
                 </span>
 
                 <h2>
-                  What's New
+                  Keyboard Shortcuts
                 </h2>
               </div>
 
@@ -3443,55 +4655,38 @@ function Dashboard({ user, onLogout }) {
               </button>
             </div>
 
-            <div className="shortcut-list">
-              <div>
-                <kbd>Ctrl</kbd>
-                <span>+</span>
-                <kbd>K</kbd>
-                <p>
-                  Focus global search
-                </p>
-              </div>
+            <div className="shortcut-row">
+              <span>
+                Global Search
+              </span>
 
-              <div>
-                <kbd>ESC</kbd>
-                <p>
-                  Close modal / drawer
-                </p>
-              </div>
+              <kbd>
+                Ctrl + K
+              </kbd>
+            </div>
 
-              <div>
-                <kbd>+</kbd>
-                <p>
-                  Add tasks from dashboard
-                </p>
-              </div>
+            <div className="shortcut-row">
+              <span>
+                Close modal
+              </span>
 
-              <div>
-                <strong>
-                  v2.4.0
-                </strong>
+              <kbd>
+                ESC
+              </kbd>
+            </div>
 
-                <p>
-                  Added World Clock,
-                  Pomodoro Timer,
-                  advanced analytics,
-                  orders table and productivity
-                  widgets.
-                </p>
-              </div>
+            <div className="shortcut-row">
+              <span>
+                Add task
+              </span>
+
+              <kbd>
+                ENTER
+              </kbd>
             </div>
           </div>
         </div>
       )}
-
-      {/* =================================================
-          SESSION WARNING
-      ================================================= */}
-
-      <div className="session-badge">
-        🔐 Session expires in 5 mins
-      </div>
     </div>
   );
 }
