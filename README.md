@@ -3,7 +3,7 @@
 ![RAF AI ](https://img.shields.io/badge/RAF%20WISH%20HUB-Secret%20Wish%20Generator-ff2a6d?style=for-the-badge&logo=sparkles&logoColor=white)
 
 [![Developed By Ravees Altaf Github](https://img.shields.io/badge/Developed%20By-Ravees%20Altaf-00f2fe?style=for-the-badge&logo=github&logoColor=black)](https://github.com/raveeskak)
-[![Ravees Altaf Instagram](https://img.shields.io/badge/Developed%20By-Ravees%20Altaf-00f2fe?style=for-the-badge&logo=github&logoColor=black)](https://www.instagram.com/unbeatable.rave3s)
+[![Ravees Altaf Instagram](https://img.shields.io/badge/Instagram20Ravees%20Altaf-00f2fe?style=for-the-badge&logo=github&logoColor=black)](https://www.instagram.com/unbeatable.rave3s)
 [![React 19](https://img.shields.io/badge/React-19.0-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-6.2-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
