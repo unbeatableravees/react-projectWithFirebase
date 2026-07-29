@@ -42,7 +42,7 @@
 .dashboard-shell {
   min-height: 100vh;
   display: flex;
-  background: var(--bg);
+  background: linear-gradient(135deg, #f6f8ff 0%, #eef3ff 45%, #f7f7ff 100%);
   color: var(--text);
   transition:
     background 0.3s ease,
@@ -50,13 +50,13 @@
 }
 
 .dashboard-shell.dark-mode {
-  --bg: #11101b;
-  --surface: #191725;
-  --surface-2: #211e2e;
+  --bg: #0b1020;
+  --surface: #12172a;
+  --surface-2: #1b2340;
   --text: #f8f7ff;
   --text-2: #aaa7bb;
   --text-3: #77748b;
-  --border: #302c40;
+  --border: #2d3655;
 
   --primary-soft: #29223f;
   --primary-soft-2: #352a52;
@@ -75,8 +75,8 @@
 ========================================= */
 
 .dashboard-sidebar {
-  width: 270px;
-  min-width: 270px;
+  width: 280px;
+  min-width: 280px;
   min-height: 100vh;
 
   position: sticky;
@@ -336,6 +336,7 @@
   min-width: 0;
   flex: 1;
   position: relative;
+  padding: 24px;
 }
 
 .dashboard-topbar {
@@ -343,6 +344,7 @@
 
   position: sticky;
   top: 0;
+  border-radius: 24px;
 
   display: flex;
   align-items: center;
@@ -2519,6 +2521,153 @@
    ORDERS
 ========================================= */
 
+.admin-review-card {
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+  box-shadow: var(--shadow);
+}
+
+.approval-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--primary), #a688ff);
+  color: white;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.review-list {
+  display: grid;
+  gap: 10px;
+}
+
+.review-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+}
+
+.review-topline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.review-status-chip {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--orange-soft);
+  color: var(--orange);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.review-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.review-info strong {
+  font-size: 15px;
+  color: var(--text);
+}
+
+.review-info p,
+.review-info span,
+.review-info small {
+  margin: 0;
+  color: var(--text-2);
+}
+
+.review-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.review-actions button {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.approve-btn {
+  background: linear-gradient(135deg, var(--green), #36c37d);
+  color: white;
+}
+
+.reject-btn {
+  background: linear-gradient(135deg, var(--red), #ff6f6f);
+  color: white;
+}
+
+.orders-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.orders-highlight-card {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.orders-highlight-card span {
+  display: block;
+  color: var(--text-3);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+}
+
+.orders-highlight-card strong {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 20px;
+  color: var(--text);
+}
+
+.orders-highlight-card small {
+  color: var(--text-2);
+  font-size: 10px;
+}
+
+.orders-highlight-card.primary {
+  background: linear-gradient(135deg, var(--primary-soft), var(--surface));
+}
+
+.orders-highlight-card.warning {
+  background: linear-gradient(135deg, var(--orange-soft), var(--surface));
+}
+
+.orders-highlight-card.success {
+  background: linear-gradient(135deg, var(--green-soft), var(--surface));
+}
+
+.orders-highlight-card.danger {
+  background: linear-gradient(135deg, var(--red-soft), var(--surface));
+}
+
 .order-controls,
 .user-controls {
   display: flex;
@@ -2686,6 +2835,18 @@ td {
   color: var(--text-2);
 
   font-size: 10px;
+}
+
+.order-table-row.pending {
+  background: linear-gradient(90deg, rgba(239, 157, 62, 0.08), transparent);
+}
+
+.order-table-row.completed {
+  background: linear-gradient(90deg, rgba(32, 163, 106, 0.08), transparent);
+}
+
+.order-table-row.failed {
+  background: linear-gradient(90deg, rgba(229, 83, 83, 0.08), transparent);
 }
 
 td strong {
@@ -3971,6 +4132,10 @@ td strong {
 }
 
 @media (max-width: 520px) {
+  .orders-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
   .dashboard-topbar {
     min-height: 72px;
     padding: 11px 13px;
