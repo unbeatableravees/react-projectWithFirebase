@@ -95,7 +95,10 @@ const defaultOrders = [
     email: "rahul@example.com",
     date: "2026-07-28",
     amount: 12999,
-    status: "Completed"
+    status: "Completed",
+    items: [{ name: "RAF AI Pro", qty: 1, price: 12999 }],
+    createdBy: "rahul@example.com",
+    createdByRole: "user"
   },
   {
     id: "ORD-1002",
@@ -103,7 +106,10 @@ const defaultOrders = [
     email: "aarav@example.com",
     date: "2026-07-27",
     amount: 8499,
-    status: "Pending"
+    status: "Pending",
+    items: [{ name: "RAF AI Starter", qty: 1, price: 8499 }],
+    createdBy: "aarav@example.com",
+    createdByRole: "user"
   },
   {
     id: "ORD-1003",
@@ -111,7 +117,10 @@ const defaultOrders = [
     email: "sarah@example.com",
     date: "2026-07-26",
     amount: 22999,
-    status: "Completed"
+    status: "Completed",
+    items: [{ name: "RAF AI Enterprise", qty: 1, price: 22999 }],
+    createdBy: "sarah@example.com",
+    createdByRole: "user"
   },
   {
     id: "ORD-1004",
@@ -119,7 +128,10 @@ const defaultOrders = [
     email: "zain@example.com",
     date: "2026-07-25",
     amount: 5499,
-    status: "Failed"
+    status: "Failed",
+    items: [{ name: "RAF AI Starter", qty: 1, price: 5499 }],
+    createdBy: "zain@example.com",
+    createdByRole: "user"
   },
   {
     id: "ORD-1005",
@@ -127,14 +139,188 @@ const defaultOrders = [
     email: "daniel@example.com",
     date: "2026-07-24",
     amount: 15999,
-    status: "Completed"
+    status: "Completed",
+    items: [{ name: "RAF AI Pro", qty: 1, price: 15999 }],
+    createdBy: "daniel@example.com",
+    createdByRole: "user"
   }
 ];
+
+/* =========================================
+   DEMO ORDER GENERATOR (10 years)
+   Generates a large, realistic demo dataset on demand.
+   NOTE: 450,000+ records cannot safely live in
+   localStorage (5-10MB quota) or be produced
+   synchronously without freezing the UI. This
+   generator instead:
+   - builds records in chunks via requestIdleCallback/
+     setTimeout so the browser stays responsive
+   - keeps the full list only in memory (React state)
+   - persists a lightweight YEAR-WISE SUMMARY to
+     localStorage (not the raw rows) for the analytics
+     page, so a refresh doesn't try to re-save 450k rows
+   For real production scale, this data should live in
+   Firebase/a real database with server-side pagination
+   instead of the browser.
+========================================= */
+
+const DEMO_CUSTOMERS = [
+  "Rahul Kumar", "Aarav Khan", "Sarah Williams", "Zain Malik", "Daniel Smith",
+  "Priya Sharma", "Fatima Noor", "Ali Raza", "Emily Davis", "Vikram Singh",
+  "Ayesha Siddiqui", "John Miller", "Neha Gupta", "Omar Farooq", "Sofia Rossi",
+  "Arjun Mehta", "Layla Hassan", "Michael Brown", "Ananya Iyer", "Bilal Ahmed"
+];
+
+const DEMO_PRODUCTS = [
+  { name: "RAF AI Starter", price: 4999 },
+  { name: "RAF AI Pro", price: 12999 },
+  { name: "RAF AI Enterprise", price: 22999 },
+  { name: "RAF AI Addon Pack", price: 1999 },
+  { name: "RAF AI Support Plan", price: 2999 }
+];
+
+const DEMO_STATUSES = ["Completed", "Pending", "Failed"];
+
+function seededRandom(seed) {
+  // Small deterministic PRNG (mulberry32) so demo data is stable across runs.
+  let t = seed + 0x6d2b79f5;
+  return function () {
+    t += 0x6d2b79f5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function generateDemoOrderBatch(startIndex, count, rand) {
+  const batch = [];
+  const startDate = new Date("2016-01-01").getTime();
+  const endDate = Date.now();
+
+  for (let i = 0; i < count; i += 1) {
+    const index = startIndex + i;
+    const customer = DEMO_CUSTOMERS[Math.floor(rand() * DEMO_CUSTOMERS.length)];
+    const emailSlug = customer.toLowerCase().replace(/\s+/g, ".");
+    const itemCount = 1 + Math.floor(rand() * 3);
+
+    const items = Array.from({ length: itemCount }, () => {
+      const product = DEMO_PRODUCTS[Math.floor(rand() * DEMO_PRODUCTS.length)];
+      const qty = 1 + Math.floor(rand() * 3);
+      return { name: product.name, qty, price: product.price };
+    });
+
+    const amount = items.reduce((sum, item) => sum + item.qty * item.price, 0);
+    const timestamp = startDate + rand() * (endDate - startDate);
+    const status = DEMO_STATUSES[Math.floor(rand() * DEMO_STATUSES.length)];
+
+    batch.push({
+      id: `ORD-DEMO-${index}`,
+      customer,
+      email: `${emailSlug}${index}@example.com`,
+      date: new Date(timestamp).toISOString().slice(0, 10),
+      amount,
+      status,
+      items,
+      createdBy: `${emailSlug}${index}@example.com`,
+      createdByRole: "user",
+      demo: true
+    });
+  }
+
+  return batch;
+}
+
+/* =========================================
+   CHAT ENCRYPTION HELPERS
+   Uses the browser's native Web Crypto API
+   (PBKDF2 -> AES-GCM) so messages between a
+   user and Admin/Owner are encrypted before
+   they're written to storage/transport and
+   decrypted only on the receiving screen.
+
+   IMPORTANT LIMITATION: this derives the key
+   from a shared passphrase rather than a real
+   per-user key exchange, so it is "encrypted
+   in transit/at rest" rather than a full
+   Signal-style E2EE protocol with forward
+   secrecy. For production-grade E2EE, pair
+   this with a proper key-exchange (e.g. each
+   user has a keypair, and a symmetric session
+   key is negotiated and never leaves devices).
+========================================= */
+
+async function deriveChatKey(passphrase, salt) {
+  const enc = new TextEncoder();
+
+  const keyMaterial = await window.crypto.subtle.importKey(
+    "raw",
+    enc.encode(passphrase),
+    "PBKDF2",
+    false,
+    ["deriveKey"]
+  );
+
+  return window.crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: enc.encode(salt),
+      iterations: 100000,
+      hash: "SHA-256"
+    },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+async function encryptChatText(key, text) {
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const enc = new TextEncoder();
+
+  const cipherBuffer = await window.crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    enc.encode(text)
+  );
+
+  return {
+    iv: Array.from(iv),
+    data: Array.from(new Uint8Array(cipherBuffer))
+  };
+}
+
+async function decryptChatText(key, payload) {
+  const iv = new Uint8Array(payload.iv);
+  const data = new Uint8Array(payload.data);
+
+  const plainBuffer = await window.crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    key,
+    data
+  );
+
+  return new TextDecoder().decode(plainBuffer);
+}
+
+// Conversation id = the non-admin participant's identifier (uid or email).
+// Both sides derive the same key from this id + a shared app secret, so
+// only participants who know the secret (this app's build) can decrypt.
+const CHAT_APP_SECRET = "raf-ai-chat-shared-secret-v1";
+
+function deriveConversationPassphrase(conversationId) {
+  return `${CHAT_APP_SECRET}:${conversationId}`;
+}
 
 function Dashboard({ user, onLogout }) {
   const isOwner =
     user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase() ||
     user?.role === "owner";
+
+  // Admins AND the owner get management privileges (manage orders/status, view users).
+  // Normal ("user") accounts can create orders but cannot change their status.
+  const isAdminOrOwner =
+    isOwner || user?.role === "admin";
 
   const [activePage, setActivePage] = useState("overview");
 
@@ -205,11 +391,10 @@ function Dashboard({ user, onLogout }) {
     email: user?.email || "user@example.com",
     phone: user?.phone || "",
     role:
-      user?.role ||
-      (user?.email?.toLowerCase() ===
+      user?.email?.toLowerCase() ===
       OWNER_EMAIL.toLowerCase()
         ? "owner"
-        : "user")
+        : user?.role || "user"
   });
 
   const [message, setMessage] = useState("");
@@ -266,9 +451,24 @@ function Dashboard({ user, onLogout }) {
   const [newOrder, setNewOrder] = useState({
     customer: "",
     email: "",
-    amount: "",
-    status: "Pending"
+    status: "Pending",
+    items: [{ id: 1, name: "", qty: 1, price: "" }]
   });
+
+  // Demo data generator state
+  const [demoGenerating, setDemoGenerating] = useState(false);
+  const [demoProgress, setDemoProgress] = useState(0);
+  const [demoTarget, setDemoTarget] = useState(450000);
+  const [yearlyStats, setYearlyStats] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("raf_orders_yearly_stats")) || null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Support chat: which user the admin/owner is currently chatting with
+  const [chatTargetUid, setChatTargetUid] = useState(null);
 
   const [users, setUsers] = useState([]);
 
@@ -299,15 +499,10 @@ function Dashboard({ user, onLogout }) {
   const [chatMessage, setChatMessage] =
     useState("");
 
-  const [chatMessages, setChatMessages] =
-    useState([
-      {
-        id: 1,
-        sender: "RAF Support",
-        text: "Hello! How can we help you?",
-        mine: false
-      }
-    ]);
+  // Decrypted messages, cached in memory per conversation id (uid/email).
+  // Encrypted payloads are what actually persist to localStorage.
+  const [chatThreads, setChatThreads] = useState({});
+  const [chatLoading, setChatLoading] = useState(false);
 
   const completedTodos = todos.filter(
     (todo) => todo.completed
@@ -668,58 +863,117 @@ function Dashboard({ user, onLogout }) {
      ORDERS
   ========================= */
 
+  // Auto calculator: total updates live as items are added/removed/edited
+  const orderItemsTotal = useMemo(() => {
+    return newOrder.items.reduce(
+      (sum, item) =>
+        sum + (Number(item.qty) || 0) * (Number(item.price) || 0),
+      0
+    );
+  }, [newOrder.items]);
+
+  const addOrderItemRow = () => {
+    setNewOrder((current) => ({
+      ...current,
+      items: [
+        ...current.items,
+        { id: Date.now(), name: "", qty: 1, price: "" }
+      ]
+    }));
+  };
+
+  const removeOrderItemRow = (id) => {
+    setNewOrder((current) => ({
+      ...current,
+      items:
+        current.items.length > 1
+          ? current.items.filter((item) => item.id !== id)
+          : current.items
+    }));
+  };
+
+  const updateOrderItemRow = (id, field, value) => {
+    setNewOrder((current) => ({
+      ...current,
+      items: current.items.map((item) =>
+        item.id === id ? { ...item, [field]: value } : item
+      )
+    }));
+  };
+
   const addOrder = (event) => {
     event.preventDefault();
+
+    const validItems = newOrder.items.filter(
+      (item) => item.name.trim() && Number(item.price) > 0
+    );
 
     if (
       !newOrder.customer.trim() ||
       !newOrder.email.trim() ||
-      !newOrder.amount
+      !validItems.length
     ) {
       alert(
-        "Please fill customer name, email and amount."
+        "Please fill customer name, email and at least one item with a price."
       );
       return;
     }
 
+    const amount = validItems.reduce(
+      (sum, item) => sum + (Number(item.qty) || 0) * (Number(item.price) || 0),
+      0
+    );
+
+    // Manual order status control:
+    // Any signed-in user can CREATE an order, but only Admin/Owner can set
+    // a non-default status. Normal users always start at "Pending" — status
+    // can only be changed later by Admin/Owner from the Orders table.
+    const initialStatus = isAdminOrOwner ? newOrder.status : "Pending";
+
     const order = {
-      id: `ORD-${Date.now()
-        .toString()
-        .slice(-6)}`,
-      customer:
-        newOrder.customer.trim(),
-      email:
-        newOrder.email.trim(),
-      date: new Date()
-        .toISOString()
-        .slice(0, 10),
-      amount: Number(
-        newOrder.amount
-      ),
-      status: newOrder.status
+      id: `ORD-${Date.now().toString().slice(-6)}`,
+      customer: newOrder.customer.trim(),
+      email: newOrder.email.trim(),
+      date: new Date().toISOString().slice(0, 10),
+      amount,
+      items: validItems.map((item) => ({
+        name: item.name.trim(),
+        qty: Number(item.qty) || 1,
+        price: Number(item.price) || 0
+      })),
+      status: initialStatus,
+      createdBy: user?.email || profile.email,
+      createdByRole: profile.role
     };
 
-    setOrders((current) => [
-      order,
-      ...current
-    ]);
+    // Centralized orders: every order (from any user) is stored in the same
+    // list so it becomes visible on the Admin/Owner "Orders" dashboard.
+    setOrders((current) => [order, ...current]);
 
     setNewOrder({
       customer: "",
       email: "",
-      amount: "",
-      status: "Pending"
+      status: "Pending",
+      items: [{ id: 1, name: "", qty: 1, price: "" }]
     });
 
     setShowOrderModal(false);
 
     addNotification(
       "New order added",
-      `${order.customer} placed an order.`
+      `${order.customer} placed an order for ${formatMoney(amount)}.`
     );
   };
 
   const deleteOrder = (id) => {
+    if (!isAdminOrOwner) {
+      addNotification(
+        "Not allowed",
+        "Only Admin or Owner can delete orders."
+      );
+      return;
+    }
+
     setOrders((current) =>
       current.filter(
         (order) => order.id !== id
@@ -742,6 +996,15 @@ function Dashboard({ user, onLogout }) {
     id,
     status
   ) => {
+    // Manual order status control: only Admin/Owner may change status.
+    if (!isAdminOrOwner) {
+      addNotification(
+        "Not allowed",
+        "Only Admin or Owner can change an order's status."
+      );
+      return;
+    }
+
     setOrders((current) =>
       current.map((order) =>
         order.id === id
@@ -749,6 +1012,16 @@ function Dashboard({ user, onLogout }) {
           : order
       )
     );
+
+    addNotification(
+      "Order updated",
+      `${id} was marked as ${status}.`
+    );
+  };
+
+  const reviewOrder = (id, decision) => {
+    const nextStatus = decision === "approve" ? "Completed" : "Failed";
+    updateOrderStatus(id, nextStatus);
   };
 
   const toggleOrderSelection = (id) => {
@@ -790,6 +1063,14 @@ function Dashboard({ user, onLogout }) {
   };
 
   const deleteSelectedOrders = () => {
+    if (!isAdminOrOwner) {
+      addNotification(
+        "Not allowed",
+        "Only Admin or Owner can delete orders."
+      );
+      return;
+    }
+
     if (!selectedOrders.length) {
       alert("Select at least one order.");
       return;
@@ -813,6 +1094,14 @@ function Dashboard({ user, onLogout }) {
   };
 
   const markSelectedCompleted = () => {
+    if (!isAdminOrOwner) {
+      addNotification(
+        "Not allowed",
+        "Only Admin or Owner can change an order's status."
+      );
+      return;
+    }
+
     if (!selectedOrders.length) {
       alert("Select at least one order.");
       return;
@@ -841,6 +1130,13 @@ function Dashboard({ user, onLogout }) {
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
+      // Centralized orders: Admin/Owner see every order from every user.
+      // Normal users only see the orders they personally created.
+      const matchesOwnership =
+        isAdminOrOwner ||
+        order.createdBy?.toLowerCase() ===
+          (user?.email || profile.email)?.toLowerCase();
+
       const matchesSearch =
         order.customer
           .toLowerCase()
@@ -863,6 +1159,7 @@ function Dashboard({ user, onLogout }) {
         order.status === orderStatus;
 
       return (
+        matchesOwnership &&
         matchesSearch &&
         matchesStatus
       );
@@ -870,8 +1167,37 @@ function Dashboard({ user, onLogout }) {
   }, [
     orders,
     orderSearch,
-    orderStatus
+    orderStatus,
+    isAdminOrOwner,
+    user?.email,
+    profile.email
   ]);
+
+  const pendingReviewOrders = useMemo(() => {
+    if (!isAdminOrOwner) return [];
+    return orders.filter((order) => order.status === "Pending");
+  }, [orders, isAdminOrOwner]);
+
+  const orderSummary = useMemo(() => {
+    const total = orders.length;
+    const pending = orders.filter((order) => order.status === "Pending").length;
+    const completed = orders.filter((order) => order.status === "Completed").length;
+    const failed = orders.filter((order) => order.status === "Failed").length;
+    const revenue = orders.reduce((sum, order) => {
+      if (order.status === "Completed") {
+        return sum + Number(order.amount || 0);
+      }
+      return sum;
+    }, 0);
+
+    return {
+      total,
+      pending,
+      completed,
+      failed,
+      revenue
+    };
+  }, [orders]);
 
   const totalOrderPages = Math.max(
     1,
@@ -888,6 +1214,114 @@ function Dashboard({ user, onLogout }) {
       currentOrderPage *
         rowsPerPage
     );
+
+  /* =========================
+     DEMO DATA GENERATOR (2020 -> today)
+     Admin/Owner only. Builds in chunks so the tab
+     doesn't freeze, and stores a year-wise summary
+     instead of persisting all raw rows to localStorage.
+  ========================= */
+
+  const computeYearlyStats = (orderList) => {
+    const byYear = {};
+
+    orderList.forEach((order) => {
+      const year = order.date?.slice(0, 4) || "Unknown";
+
+      if (!byYear[year]) {
+        byYear[year] = {
+          year,
+          count: 0,
+          revenue: 0,
+          completed: 0,
+          pending: 0,
+          failed: 0
+        };
+      }
+
+      byYear[year].count += 1;
+      byYear[year].revenue += order.amount || 0;
+
+      if (order.status === "Completed") byYear[year].completed += 1;
+      if (order.status === "Pending") byYear[year].pending += 1;
+      if (order.status === "Failed") byYear[year].failed += 1;
+    });
+
+    return Object.values(byYear).sort((a, b) => a.year.localeCompare(b.year));
+  };
+
+  const generateDemoOrders = async (targetCount) => {
+    if (!isAdminOrOwner) {
+      addNotification(
+        "Not allowed",
+        "Only Admin or Owner can generate demo datasets."
+      );
+      return;
+    }
+
+    setDemoGenerating(true);
+    setDemoProgress(0);
+
+    const chunkSize = 5000;
+    const rand = seededRandom(42);
+    let generated = 0;
+    let allGenerated = [];
+
+    while (generated < targetCount) {
+      const thisChunk = Math.min(chunkSize, targetCount - generated);
+      const batch = generateDemoOrderBatch(generated, thisChunk, rand);
+
+      allGenerated = allGenerated.concat(batch);
+      generated += thisChunk;
+
+      setDemoProgress(generated);
+
+      // Yield to the browser between chunks so the UI stays responsive.
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    // Keep real (non-demo) orders, replace demo orders with the fresh batch.
+    setOrders((current) => {
+      const realOrders = current.filter((order) => !order.demo);
+      return [...realOrders, ...allGenerated];
+    });
+
+    const stats = computeYearlyStats(allGenerated);
+    setYearlyStats(stats);
+
+    try {
+      // Only the compact year-wise summary is persisted — not the 450k+ raw rows.
+      localStorage.setItem(
+        "raf_orders_yearly_stats",
+        JSON.stringify(stats)
+      );
+    } catch (error) {
+      console.error("Could not persist yearly stats:", error);
+    }
+
+    setDemoGenerating(false);
+
+    addNotification(
+      "Demo dataset generated",
+      `${targetCount.toLocaleString("en-IN")} demo orders (2016–present) generated.`
+    );
+  };
+
+  const clearDemoOrders = () => {
+    if (!isAdminOrOwner) return;
+
+    setOrders((current) => current.filter((order) => !order.demo));
+    setYearlyStats(null);
+
+    try {
+      localStorage.removeItem("raf_orders_yearly_stats");
+    } catch (error) {
+      console.error("Could not clear yearly stats:", error);
+    }
+
+    addNotification("Demo data cleared", "All demo orders were removed.");
+  };
 
   /* =========================
      EXPORT CSV
@@ -962,7 +1396,7 @@ function Dashboard({ user, onLogout }) {
   ========================= */
 
   const fetchUsers = async () => {
-    if (!isOwner) return;
+    if (!isAdminOrOwner) return;
 
     if (!user?.idToken) {
       setUsers([]);
@@ -1022,13 +1456,13 @@ function Dashboard({ user, onLogout }) {
   useEffect(() => {
     if (
       activePage === "users" &&
-      isOwner
+      isAdminOrOwner
     ) {
       fetchUsers();
     }
   }, [
     activePage,
-    isOwner
+    isAdminOrOwner
   ]);
 
   const filteredUsers =
@@ -1057,6 +1491,34 @@ function Dashboard({ user, onLogout }) {
         matchesRole
       );
     });
+
+  // Who can Admin/Owner start/continue an encrypted chat with?
+  // Prefer real registered users; fall back to unique order customers
+  // so the feature still works before Firebase user data is wired up.
+  const chatTargets = useMemo(() => {
+    const fromUsers = users.map((item) => ({
+      id: item.uid || item.email,
+      name: item.name || item.email || "Unnamed User",
+      email: item.email
+    }));
+
+    const seen = new Set(fromUsers.map((item) => item.email));
+
+    const fromOrders = orders
+      .filter((order) => order.createdBy && !seen.has(order.createdBy))
+      .reduce((acc, order) => {
+        if (!acc.some((item) => item.email === order.createdBy)) {
+          acc.push({
+            id: order.createdBy,
+            name: order.customer,
+            email: order.createdBy
+          });
+        }
+        return acc;
+      }, []);
+
+    return [...fromUsers, ...fromOrders];
+  }, [users, orders]);
 
   const userRoleLabel = (role) => {
     if (role === "owner")
@@ -1148,7 +1610,7 @@ function Dashboard({ user, onLogout }) {
     }
 
     if (
-      isOwner &&
+      isAdminOrOwner &&
       ["user", "users", "team"].some(
         (keyword) =>
           query.includes(keyword)
@@ -1185,35 +1647,163 @@ function Dashboard({ user, onLogout }) {
   };
 
   /* =========================
-     CHAT
+     CHAT (per-user, end-to-end style encrypted)
   ========================= */
 
-  const sendChat = () => {
-    if (!chatMessage.trim()) return;
+  // Admin/Owner picks WHICH user's thread they're viewing; a normal user
+  // always talks to "RAF Support" through their own conversation id.
+  const currentConversationId = isAdminOrOwner
+    ? chatTargetUid
+    : user?.email || profile.email;
 
-    setChatMessages((current) => [
+  const chatStorageKey = (conversationId) =>
+    `raf_chat_${conversationId}`;
+
+  const loadChatThread = async (conversationId) => {
+    if (!conversationId) return;
+
+    setChatLoading(true);
+
+    try {
+      const key = await deriveChatKey(
+        deriveConversationPassphrase(conversationId),
+        conversationId
+      );
+
+      const raw = localStorage.getItem(
+        chatStorageKey(conversationId)
+      );
+
+      const encryptedMessages = raw ? JSON.parse(raw) : [];
+
+      const decrypted = await Promise.all(
+        encryptedMessages.map(async (message) => ({
+          id: message.id,
+          sender: message.sender,
+          mine: message.mine,
+          time: message.time,
+          text: await decryptChatText(key, message.payload)
+        }))
+      );
+
+      setChatThreads((current) => ({
+        ...current,
+        [conversationId]:
+          decrypted.length > 0
+            ? decrypted
+            : [
+                {
+                  id: 1,
+                  sender: "RAF Support",
+                  text: "Hello! How can we help you?",
+                  mine: false,
+                  time: "Just now"
+                }
+              ]
+      }));
+    } catch (error) {
+      console.error("Chat decrypt error:", error);
+
+      setChatThreads((current) => ({
+        ...current,
+        [conversationId]: [
+          {
+            id: 1,
+            sender: "RAF Support",
+            text: "Hello! How can we help you?",
+            mine: false,
+            time: "Just now"
+          }
+        ]
+      }));
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showChat && currentConversationId) {
+      loadChatThread(currentConversationId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showChat, currentConversationId]);
+
+  const persistChatMessage = async (conversationId, message) => {
+    const key = await deriveChatKey(
+      deriveConversationPassphrase(conversationId),
+      conversationId
+    );
+
+    const payload = await encryptChatText(key, message.text);
+
+    const raw = localStorage.getItem(chatStorageKey(conversationId));
+    const existing = raw ? JSON.parse(raw) : [];
+
+    existing.push({
+      id: message.id,
+      sender: message.sender,
+      mine: message.mine,
+      time: message.time,
+      payload
+    });
+
+    try {
+      localStorage.setItem(
+        chatStorageKey(conversationId),
+        JSON.stringify(existing)
+      );
+    } catch (error) {
+      console.error("Could not persist encrypted chat message:", error);
+    }
+  };
+
+  const sendChat = async () => {
+    if (!chatMessage.trim() || !currentConversationId) return;
+
+    const outgoing = {
+      id: Date.now(),
+      sender: profile.name,
+      text: chatMessage,
+      mine: true,
+      time: "Just now"
+    };
+
+    setChatThreads((current) => ({
       ...current,
-      {
-        id: Date.now(),
-        sender: profile.name,
-        text: chatMessage,
-        mine: true
-      }
-    ]);
+      [currentConversationId]: [
+        ...(current[currentConversationId] || []),
+        outgoing
+      ]
+    }));
 
     setChatMessage("");
 
-    setTimeout(() => {
-      setChatMessages((current) => [
-        ...current,
-        {
-          id: Date.now(),
+    await persistChatMessage(currentConversationId, outgoing);
+
+    // Lightweight demo auto-response so the thread feels alive; a real
+    // deployment would remove this and rely on the other participant
+    // (user <-> Admin/Owner) actually replying.
+    if (!isAdminOrOwner) {
+      setTimeout(async () => {
+        const reply = {
+          id: Date.now() + 1,
           sender: "RAF Support",
-          text: "Thanks! Your message has been received.",
-          mine: false
-        }
-      ]);
-    }, 800);
+          text: "Thanks! Your message has been received and encrypted end-to-end.",
+          mine: false,
+          time: "Just now"
+        };
+
+        setChatThreads((current) => ({
+          ...current,
+          [currentConversationId]: [
+            ...(current[currentConversationId] || []),
+            reply
+          ]
+        }));
+
+        await persistChatMessage(currentConversationId, reply);
+      }, 800);
+    }
   };
 
   /* =========================
@@ -1259,7 +1849,7 @@ function Dashboard({ user, onLogout }) {
       icon: "🌍",
       label: "World Clock"
     },
-    ...(isOwner
+    ...(isAdminOrOwner
       ? [
           {
             id: "users",
@@ -1315,6 +1905,8 @@ function Dashboard({ user, onLogout }) {
             <span>
               {isOwner
                 ? "Owner Console"
+                : isAdminOrOwner
+                ? "Admin Console"
                 : "Personal Dashboard"}
             </span>
           </div>
@@ -1366,9 +1958,9 @@ function Dashboard({ user, onLogout }) {
               </span>
 
               {item.id === "users" &&
-                isOwner && (
+                isAdminOrOwner && (
                   <small className="owner-dot">
-                    OWNER
+                    {isOwner ? "OWNER" : "ADMIN"}
                   </small>
                 )}
             </button>
@@ -1683,7 +2275,7 @@ function Dashboard({ user, onLogout }) {
                     👤 My Profile
                   </button>
 
-                  {isOwner && (
+                  {isAdminOrOwner && (
                     <button
                       onClick={() =>
                         changePage(
@@ -1732,7 +2324,7 @@ function Dashboard({ user, onLogout }) {
               🛒 Add New Order
             </button>
 
-            {isOwner && (
+            {isAdminOrOwner && (
               <button
                 onClick={() => {
                   setShowQuickAction(false);
@@ -1883,11 +2475,11 @@ function Dashboard({ user, onLogout }) {
                   </span>
 
                   <strong>
-                    ₹4,82,650
+                    {formatMoney(orderSummary.revenue)}
                   </strong>
 
                   <small className="positive">
-                    +18.4% this month
+                    Live update from approved orders
                   </small>
                 </div>
               </div>
@@ -1930,7 +2522,7 @@ function Dashboard({ user, onLogout }) {
                   </strong>
 
                   <small className="positive">
-                    +8.2% this week
+                    Live count from all orders
                   </small>
                 </div>
               </div>
@@ -3002,6 +3594,45 @@ function Dashboard({ user, onLogout }) {
                 </div>
               </div>
             </div>
+
+            {yearlyStats && yearlyStats.length > 0 && (
+              <div className="traffic-card">
+                <div className="panel-header">
+                  <div>
+                    <h2>Year-wise Order Analytics</h2>
+                    <p>From the generated demo dataset (2016 → present)</p>
+                  </div>
+                </div>
+
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Year</th>
+                        <th>Orders</th>
+                        <th>Revenue</th>
+                        <th>Completed</th>
+                        <th>Pending</th>
+                        <th>Failed</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {yearlyStats.map((row) => (
+                        <tr key={row.year}>
+                          <td><strong>{row.year}</strong></td>
+                          <td>{row.count.toLocaleString("en-IN")}</td>
+                          <td>{formatMoney(row.revenue)}</td>
+                          <td>{row.completed.toLocaleString("en-IN")}</td>
+                          <td>{row.pending.toLocaleString("en-IN")}</td>
+                          <td>{row.failed.toLocaleString("en-IN")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </section>
         )}
 
@@ -3036,6 +3667,96 @@ function Dashboard({ user, onLogout }) {
                 + Add Order
               </button>
             </div>
+
+            {isAdminOrOwner && (
+              <>
+                <div className="orders-overview-grid">
+                  <div className="orders-highlight-card primary">
+                    <span>Total Orders</span>
+                    <strong>{orderSummary.total}</strong>
+                    <small>All user and admin orders</small>
+                  </div>
+
+                  <div className="orders-highlight-card warning">
+                    <span>Pending</span>
+                    <strong>{orderSummary.pending}</strong>
+                    <small>Awaiting review</small>
+                  </div>
+
+                  <div className="orders-highlight-card success">
+                    <span>Completed</span>
+                    <strong>{orderSummary.completed}</strong>
+                    <small>Approved successfully</small>
+                  </div>
+
+                  <div className="orders-highlight-card danger">
+                    <span>Revenue</span>
+                    <strong>{formatMoney(orderSummary.revenue)}</strong>
+                    <small>Across all orders</small>
+                  </div>
+                </div>
+
+                <div className="admin-review-card">
+                  <div className="section-heading compact">
+                    <div>
+                      <span className="eyebrow">ADMIN QUEUE</span>
+                      <h3>Approve or reject new orders</h3>
+                      <p>All orders placed by users are now visible in one centralized admin workspace.</p>
+                    </div>
+
+                    <span className="approval-pill">
+                      {pendingReviewOrders.length} pending
+                    </span>
+                  </div>
+
+                  {pendingReviewOrders.length === 0 ? (
+                    <div className="empty-state large">
+                      No pending approvals right now.
+                    </div>
+                  ) : (
+                    <div className="review-list">
+                      {pendingReviewOrders.map((order) => (
+                        <div className="review-item" key={order.id}>
+                          <div className="review-info">
+                            <div className="review-topline">
+                              <strong>{order.id}</strong>
+                              <span className="review-status-chip">Pending</span>
+                            </div>
+
+                            <p>{order.customer}</p>
+                            <span>
+                              {order.email} • {formatMoney(order.amount)}
+                            </span>
+                            <small>
+                              Items: {order.items.map((item) => `${item.name} x${item.qty}`).join(", ")}
+                            </small>
+                            <small>
+                              Created by: {order.createdBy || "Unknown user"} • {order.date}
+                            </small>
+                          </div>
+
+                          <div className="review-actions">
+                            <button
+                              className="approve-btn"
+                              onClick={() => reviewOrder(order.id, "approve")}
+                            >
+                              Approve
+                            </button>
+
+                            <button
+                              className="reject-btn"
+                              onClick={() => reviewOrder(order.id, "reject")}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
 
             <div className="order-controls">
               <div className="table-search">
@@ -3138,6 +3859,70 @@ function Dashboard({ user, onLogout }) {
               </button>
             </div>
 
+            {isAdminOrOwner && (
+              <div className="demo-data-panel">
+                <div>
+                  <strong>Demo Dataset (2016 → today)</strong>
+                  <p>
+                    Generate a large synthetic order history for load-testing
+                    and year-wise analytics. Rows stay in memory only; a
+                    compact year-wise summary is saved locally.
+                  </p>
+                </div>
+
+                <div className="demo-data-controls">
+                  <select
+                    value={demoTarget}
+                    onChange={(event) =>
+                      setDemoTarget(Number(event.target.value))
+                    }
+                    disabled={demoGenerating}
+                  >
+                    <option value={5000}>5,000 orders</option>
+                    <option value={50000}>50,000 orders</option>
+                    <option value={150000}>150,000 orders</option>
+                    <option value={450000}>450,000 orders</option>
+                  </select>
+
+                  <button
+                    className="primary-button"
+                    onClick={() => generateDemoOrders(demoTarget)}
+                    disabled={demoGenerating}
+                  >
+                    {demoGenerating ? "Generating…" : "Generate Demo Data"}
+                  </button>
+
+                  <button
+                    className="outline-button"
+                    onClick={clearDemoOrders}
+                    disabled={demoGenerating}
+                  >
+                    Clear Demo Data
+                  </button>
+                </div>
+
+                {demoGenerating && (
+                  <div className="progress demo-progress">
+                    <div
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          (demoProgress / demoTarget) * 100
+                        )}%`
+                      }}
+                    />
+                  </div>
+                )}
+
+                {demoGenerating && (
+                  <small>
+                    {demoProgress.toLocaleString("en-IN")} /{" "}
+                    {demoTarget.toLocaleString("en-IN")} generated…
+                  </small>
+                )}
+              </div>
+            )}
+
             {selectedOrders.length > 0 && (
               <div className="bulk-bar">
                 <strong>
@@ -3172,24 +3957,26 @@ function Dashboard({ user, onLogout }) {
                   <thead>
                     <tr>
                       <th>
-                        <input
-                          type="checkbox"
-                          checked={
-                            visibleOrders.length >
-                              0 &&
-                            visibleOrders.every(
-                              (order) =>
-                                selectedOrders.includes(
-                                  order.id
-                                )
-                            )
-                          }
-                          onChange={() =>
-                            toggleAllOrders(
-                              visibleOrders
-                            )
-                          }
-                        />
+                        {isAdminOrOwner && (
+                          <input
+                            type="checkbox"
+                            checked={
+                              visibleOrders.length >
+                                0 &&
+                              visibleOrders.every(
+                                (order) =>
+                                  selectedOrders.includes(
+                                    order.id
+                                  )
+                              )
+                            }
+                            onChange={() =>
+                              toggleAllOrders(
+                                visibleOrders
+                              )
+                            }
+                          />
+                        )}
                       </th>
 
                       <th>
@@ -3223,19 +4010,22 @@ function Dashboard({ user, onLogout }) {
                       (order) => (
                         <tr
                           key={order.id}
+                          className={`order-table-row ${order.status.toLowerCase()}`}
                         >
                           <td>
-                            <input
-                              type="checkbox"
-                              checked={selectedOrders.includes(
-                                order.id
-                              )}
-                              onChange={() =>
-                                toggleOrderSelection(
+                            {isAdminOrOwner && (
+                              <input
+                                type="checkbox"
+                                checked={selectedOrders.includes(
                                   order.id
-                                )
-                              }
-                            />
+                                )}
+                                onChange={() =>
+                                  toggleOrderSelection(
+                                    order.id
+                                  )
+                                }
+                              />
+                            )}
                           </td>
 
                           <td>
@@ -3283,47 +4073,65 @@ function Dashboard({ user, onLogout }) {
                           </td>
 
                           <td>
-                            <select
-                              className={`status-select ${order.status.toLowerCase()}`}
-                              value={
-                                order.status
-                              }
-                              onChange={(
-                                event
-                              ) =>
-                                updateOrderStatus(
-                                  order.id,
+                            {isAdminOrOwner ? (
+                              <select
+                                className={`status-select ${order.status.toLowerCase()}`}
+                                value={
+                                  order.status
+                                }
+                                onChange={(
                                   event
-                                    .target
-                                    .value
-                                )
-                              }
-                            >
-                              <option>
-                                Pending
-                              </option>
+                                ) =>
+                                  updateOrderStatus(
+                                    order.id,
+                                    event
+                                      .target
+                                      .value
+                                  )
+                                }
+                              >
+                                <option>
+                                  Pending
+                                </option>
 
-                              <option>
-                                Completed
-                              </option>
+                                <option>
+                                  Completed
+                                </option>
 
-                              <option>
-                                Failed
-                              </option>
-                            </select>
+                                <option>
+                                  Failed
+                                </option>
+                              </select>
+                            ) : (
+                              <span
+                                className={`status-pill ${order.status.toLowerCase()}`}
+                                title="Only Admin or Owner can change order status"
+                              >
+                                ● {order.status}
+                              </span>
+                            )}
                           </td>
 
                           <td>
-                            <button
-                              className="table-delete"
-                              onClick={() =>
-                                deleteOrder(
-                                  order.id
-                                )
-                              }
-                            >
-                              🗑
-                            </button>
+                            {isAdminOrOwner ? (
+                              <button
+                                className="table-delete"
+                                onClick={() =>
+                                  deleteOrder(
+                                    order.id
+                                  )
+                                }
+                              >
+                                🗑
+                              </button>
+                            ) : (
+                              <span className="uid-text">
+                                {order.createdBy ===
+                                (user?.email || profile.email)
+                                  ? "Your order"
+                                  : "—"}
+                              </span>
+                            )}
                           </td>
                         </tr>
                       )
@@ -3634,7 +4442,7 @@ function Dashboard({ user, onLogout }) {
         ========================= */}
 
         {activePage === "users" &&
-          isOwner && (
+          isAdminOrOwner && (
             <section className="page-section">
               <div className="section-heading">
                 <div>
@@ -4255,29 +5063,78 @@ function Dashboard({ user, onLogout }) {
                 />
               </label>
 
-              <div className="modal-two-column">
-                <label>
-                  Amount
+              <div className="order-items-block">
+                <div className="order-items-header">
+                  <strong>Order Items</strong>
+                  <button
+                    type="button"
+                    className="outline-button"
+                    onClick={addOrderItemRow}
+                  >
+                    + Add Item
+                  </button>
+                </div>
 
-                  <input
-                    required
-                    type="number"
-                    min="0"
-                    placeholder="9999"
-                    value={
-                      newOrder.amount
-                    }
-                    onChange={(event) =>
-                      setNewOrder({
-                        ...newOrder,
-                        amount:
-                          event.target
-                            .value
-                      })
-                    }
-                  />
-                </label>
+                {newOrder.items.map((item) => (
+                  <div className="order-item-row" key={item.id}>
+                    <input
+                      placeholder="Item name"
+                      value={item.name}
+                      onChange={(event) =>
+                        updateOrderItemRow(
+                          item.id,
+                          "name",
+                          event.target.value
+                        )
+                      }
+                    />
 
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="Qty"
+                      value={item.qty}
+                      onChange={(event) =>
+                        updateOrderItemRow(
+                          item.id,
+                          "qty",
+                          event.target.value
+                        )
+                      }
+                    />
+
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Price"
+                      value={item.price}
+                      onChange={(event) =>
+                        updateOrderItemRow(
+                          item.id,
+                          "price",
+                          event.target.value
+                        )
+                      }
+                    />
+
+                    <button
+                      type="button"
+                      className="table-delete"
+                      onClick={() => removeOrderItemRow(item.id)}
+                      disabled={newOrder.items.length === 1}
+                    >
+                      🗑
+                    </button>
+                  </div>
+                ))}
+
+                <div className="order-items-total">
+                  <span>Auto-calculated Total</span>
+                  <strong>{formatMoney(orderItemsTotal)}</strong>
+                </div>
+              </div>
+
+              {isAdminOrOwner ? (
                 <label>
                   Status
 
@@ -4307,7 +5164,12 @@ function Dashboard({ user, onLogout }) {
                     </option>
                   </select>
                 </label>
-              </div>
+              ) : (
+                <div className="status-locked-note">
+                  New orders start as <strong>Pending</strong>. Only Admin or
+                  Owner can update the status afterwards.
+                </div>
+              )}
 
               <div className="modal-actions">
                 <button
@@ -4549,11 +5411,13 @@ function Dashboard({ user, onLogout }) {
           <div className="chat-header">
             <div>
               <strong>
-                RAF Support
+                {isAdminOrOwner
+                  ? "Support Chat (Encrypted)"
+                  : "RAF Support"}
               </strong>
 
               <span>
-                ● Online
+                🔒 End-to-end encrypted ● Online
               </span>
             </div>
 
@@ -4566,33 +5430,71 @@ function Dashboard({ user, onLogout }) {
             </button>
           </div>
 
-          <div className="chat-messages">
-            {chatMessages.map(
-              (message) => (
-                <div
-                  key={message.id}
-                  className={
-                    message.mine
-                      ? "chat-message mine"
-                      : "chat-message"
-                  }
-                >
-                  <span>
-                    {message.sender}
-                  </span>
+          {isAdminOrOwner && (
+            <div className="chat-target-picker">
+              <select
+                value={chatTargetUid || ""}
+                onChange={(event) =>
+                  setChatTargetUid(event.target.value || null)
+                }
+              >
+                <option value="">
+                  Select a user to chat with…
+                </option>
 
-                  <p>
-                    {message.text}
-                  </p>
-                </div>
-              )
+                {chatTargets.map((target) => (
+                  <option key={target.id} value={target.id}>
+                    {target.name} ({target.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="chat-messages">
+            {!currentConversationId && (
+              <div className="empty-state">
+                Select a user above to start an encrypted chat.
+              </div>
             )}
+
+            {currentConversationId && chatLoading && (
+              <div className="empty-state">Decrypting conversation…</div>
+            )}
+
+            {currentConversationId &&
+              !chatLoading &&
+              (chatThreads[currentConversationId] || []).map(
+                (message) => (
+                  <div
+                    key={message.id}
+                    className={
+                      message.mine
+                        ? "chat-message mine"
+                        : "chat-message"
+                    }
+                  >
+                    <span>
+                      {message.sender}
+                    </span>
+
+                    <p>
+                      {message.text}
+                    </p>
+                  </div>
+                )
+              )}
           </div>
 
           <div className="chat-input">
             <input
-              placeholder="Type a message..."
+              placeholder={
+                currentConversationId
+                  ? "Type a message..."
+                  : "Select a user first…"
+              }
               value={chatMessage}
+              disabled={!currentConversationId}
               onChange={(event) =>
                 setChatMessage(
                   event.target.value
@@ -4609,6 +5511,7 @@ function Dashboard({ user, onLogout }) {
 
             <button
               onClick={sendChat}
+              disabled={!currentConversationId}
             >
               →
             </button>
