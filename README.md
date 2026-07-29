@@ -1,6 +1,6 @@
 # 🚀 RAF AI — Modern React + Firebase Dashboard
 
-![AURA Mart ](https://img.shields.io/badge/RAF%20WISH%20HUB-Secret%20Wish%20Generator-ff2a6d?style=for-the-badge&logo=sparkles&logoColor=white)
+![AURA Mart ](https://img.shields.io/badge/RAF%20AI%20HUB-Secret%20Wish%20Generator-ff2a6d?style=for-the-badge&logo=sparkles&logoColor=white)
 
 [![Developed By Ravees Altaf Github](https://img.shields.io/badge/Developed%20By-Ravees%20Altaf-00f2fe?style=for-the-badge&logo=github&logoColor=black)](https://github.com/raveeskak)
 [![Ravees Altaf Instagram](https://img.shields.io/badge/Instagram20Ravees%20Altaf-00f2fe?style=for-the-badge&logo=github&logoColor=black)](https://www.instagram.com/unbeatable.rave3s)
@@ -16,7 +16,7 @@
   Create ultra-personalized birthday & celebration experiences with interactive virtual cakes, sound tracks, photo timeline galleries, custom themes, and zero-knowledge encryption.
 </p>
 
-[✨ Live Preview](https://aura-mart-8be6c.web.app/) • [🚀 Quick Start](#-getting-started) • [🔒 Security Model](#-security--encryption-architecture) • [🛠 Tech Stack](#-tech-stack) • [📁 Directory Structure](#-project-structure)
+[✨ Live Preview](https://my-first-project-raf.web.app/) • [🚀 Quick Start](#-getting-started) • [🔒 Security Model](#-security--encryption-architecture) • [🛠 Tech Stack](#-tech-stack) • [📁 Directory Structure](#-project-structure)
 
 A modern, responsive and clean **React + Firebase dashboard application** featuring authentication, Google Login, task management, user profile, analytics, settings and a light **white + purple UI**.
 
