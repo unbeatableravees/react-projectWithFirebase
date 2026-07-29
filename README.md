@@ -1,5 +1,23 @@
 # 🚀 RAF AI — Modern React + Firebase Dashboard
 
+![RAF AI ](https://img.shields.io/badge/RAF%20WISH%20HUB-Secret%20Wish%20Generator-ff2a6d?style=for-the-badge&logo=sparkles&logoColor=white)
+
+[![Developed By Ravees Altaf Github](https://img.shields.io/badge/Developed%20By-Ravees%20Altaf-00f2fe?style=for-the-badge&logo=github&logoColor=black)](https://github.com/raveeskak)
+[![Developed By Ravees Altaf Instagram](https://img.shields.io/badge/Developed%20By-Ravees%20Altaf-00f2fe?style=for-the-badge&logo=github&logoColor=black)](https://www.instagram.com/unbeatable.rave3s)
+[![React 19](https://img.shields.io/badge/React-19.0-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-6.2-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Firebase Firestore](https://img.shields.io/badge/Firebase-Firestore-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
+[![AES-256 Encryption](https://img.shields.io/badge/Security-AES--256--GCM-green?style=for-the-badge&logo=shield&logoColor=white)](#-security--encryption-architecture)
+
+<p align="center">
+  <b>A state-of-the-art, password-protected, client-side encrypted wish platform.</b><br/>
+  Create ultra-personalized birthday & celebration experiences with interactive virtual cakes, sound tracks, photo timeline galleries, custom themes, and zero-knowledge encryption.
+</p>
+
+[✨ Live Preview](https://my-first-project-raf.web.app/) • [🚀 Quick Start](#-getting-started) • [🔒 Security Model](#-security--encryption-architecture) • [🛠 Tech Stack](#-tech-stack) • [📁 Directory Structure](#-project-structure)
+
 A modern, responsive and clean **React + Firebase dashboard application** featuring authentication, Google Login, task management, user profile, analytics, settings and a light **white + purple UI**.
 
 RAF AI is designed as a modular frontend project that can be extended into a complete SaaS dashboard, productivity platform or AI-powered application.
